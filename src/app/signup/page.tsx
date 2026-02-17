@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/auth-provider";
+import { publicApiFetch } from "@/lib/client-api";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -21,13 +22,13 @@ export default function SignupPage() {
     setLoading(true);
     setError(null);
 
-    const response = await fetch("/api/auth/signup", {
+    const payload = await publicApiFetch<{
+      user: unknown;
+      session: { access_token: string; refresh_token: string } | null;
+    }>("/api/auth/signup", {
       method: "POST",
-      headers: { "content-type": "application/json" },
       body: JSON.stringify({ email, password, nickname }),
     });
-
-    const payload = await response.json();
 
     if (!payload.ok) {
       setError(payload.error?.message ?? "회원가입에 실패했습니다.");

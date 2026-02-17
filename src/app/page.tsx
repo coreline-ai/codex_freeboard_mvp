@@ -1,7 +1,5 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Board } from "@/types/domain";
 
 interface HomePost {
@@ -13,53 +11,64 @@ interface HomePost {
   like_count?: number;
 }
 
-export default function HomePage() {
-  const [boards, setBoards] = useState<Board[]>([]);
-  const [latestPosts, setLatestPosts] = useState<HomePost[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export default async function HomePage() {
+  const admin = getSupabaseAdminClient();
 
-  useEffect(() => {
-    let mounted = true;
+  let boards: Board[] = [];
+  let latestPosts: HomePost[] = [];
+  let error: string | null = null;
 
-    async function load() {
-      setLoading(true);
+  const { data: boardRows, error: boardsError } = await admin
+    .from("boards")
+    .select("*")
+    .eq("is_public", true)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true });
 
-      const boardsRes = await fetch("/api/boards", { cache: "no-store" });
-      const boardsPayload = await boardsRes.json();
+  if (boardsError) {
+    error = "게시판 목록을 불러오지 못했습니다.";
+  } else {
+    boards = (boardRows ?? []) as Board[];
+  }
 
-      if (!boardsPayload.ok) {
-        if (mounted) {
-          setError(boardsPayload.error?.message ?? "게시판 목록을 불러오지 못했습니다.");
-          setLoading(false);
-        }
-        return;
-      }
+  const { data: freeboard } = await admin
+    .from("boards")
+    .select("id")
+    .eq("slug", "freeboard")
+    .eq("is_public", true)
+    .is("deleted_at", null)
+    .maybeSingle();
 
-      if (mounted) {
-        setBoards(boardsPayload.data ?? []);
-      }
+  if (freeboard?.id) {
+    const { data: posts, error: postsError } = await admin
+      .from("posts")
+      .select("id,title,created_at,author_id,comment_count,like_count")
+      .eq("board_id", freeboard.id)
+      .eq("status", "published")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(8);
 
-      const feedRes = await fetch("/api/boards/freeboard/posts?page=1", { cache: "no-store" });
-      const feedPayload = await feedRes.json();
+    if (!postsError) {
+      const authorIds = [...new Set((posts ?? []).map((post) => post.author_id))];
+      const { data: profiles } = authorIds.length
+        ? await admin.from("profiles").select("id,nickname").in("id", authorIds)
+        : { data: [] as Array<{ id: string; nickname: string }> };
 
-      if (mounted) {
-        if (feedPayload.ok) {
-          setLatestPosts((feedPayload.data.posts ?? []).slice(0, 8));
-          setError(null);
-        } else {
-          setError(feedPayload.error?.message ?? "최신 글을 불러오지 못했습니다.");
-        }
-        setLoading(false);
-      }
+      const profileMap = new Map((profiles ?? []).map((profile) => [profile.id, profile.nickname]));
+
+      latestPosts = (posts ?? []).map((post) => ({
+        id: post.id,
+        title: post.title,
+        created_at: post.created_at,
+        comment_count: post.comment_count,
+        like_count: post.like_count,
+        author_nickname: profileMap.get(post.author_id) ?? "unknown",
+      }));
+    } else if (!error) {
+      error = "최신 글을 불러오지 못했습니다.";
     }
-
-    void load();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  }
 
   return (
     <div className="page-shell">
@@ -90,9 +99,7 @@ export default function HomePage() {
             <span className="muted">총 {boards.length}개</span>
           </div>
 
-          {loading ? <div className="empty-state">게시판을 불러오는 중입니다...</div> : null}
-
-          {!loading && boards.length === 0 ? <div className="empty-state">생성된 게시판이 없습니다.</div> : null}
+          {boards.length === 0 ? <div className="empty-state">생성된 게시판이 없습니다.</div> : null}
 
           <div className="list">
             {boards.map((board) => (
@@ -113,9 +120,7 @@ export default function HomePage() {
             <span className="muted">freeboard 기준</span>
           </div>
 
-          {loading ? <div className="empty-state">최신 글을 불러오는 중입니다...</div> : null}
-
-          {!loading && latestPosts.length === 0 ? <div className="empty-state">최신 글이 없습니다.</div> : null}
+          {latestPosts.length === 0 ? <div className="empty-state">최신 글이 없습니다.</div> : null}
 
           <div className="list">
             {latestPosts.map((post) => (

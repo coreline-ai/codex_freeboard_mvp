@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
+import { publicApiFetch } from "@/lib/client-api";
 import type { SearchResponseData } from "@/types/domain";
 
 function makePageList(current: number, total: number) {
@@ -46,10 +47,12 @@ export default function SearchPageClient() {
       }
 
       setLoading(true);
-      const response = await fetch(`/api/search?q=${encodeURIComponent(activeQ)}&page=${page}`, {
-        cache: "no-store",
-      });
-      const payload = await response.json();
+      const payload = await publicApiFetch<SearchResponseData>(
+        `/api/search?q=${encodeURIComponent(activeQ)}&page=${page}`,
+        {
+          cache: "no-store",
+        },
+      );
 
       if (!mounted) {
         return;

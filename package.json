@@ -7,7 +7,10 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run",
+    "test": "npm run test:unit",
+    "test:unit": "vitest run",
+    "test:integration": "vitest run -c vitest.integration.config.ts",
+    "test:all": "npm run test:unit && npm run test:integration",
     "db:local:start": "npx supabase start --exclude studio,mailpit,imgproxy,storage-api,realtime,logflare,vector,supavisor,edge-runtime",
     "db:local:stop": "npx supabase stop",
     "db:local:status": "npx supabase status",
@@ -21,6 +24,7 @@
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "web-vitals": "^4.2.4",
     "zod": "^4.3.6"
   },
   "devDependencies": {
