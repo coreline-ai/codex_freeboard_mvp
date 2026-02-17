@@ -1,88 +1,283 @@
-# FreeBoard (Next.js + Supabase + Netlify)
+# FreeBoard MVP
 
-자유 게시판 서비스 구현체입니다.
+[![Next.js](https://img.shields.io/badge/Next.js-16.1.6-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-Auth%20%2B%20Postgres-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
+[![Netlify](https://img.shields.io/badge/Deploy-Netlify-00C7B7?logo=netlify&logoColor=white)](https://www.netlify.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
-- 회원가입/로그인 (Supabase Auth)
-- 다중 게시판 (`/b/[slug]`)
-- 게시글/댓글(대댓글 1단계)/좋아요/신고
-- 관리자 모드 (게시판 생성/복제, 유저 role/정지/복구/활동조회, 신고 처리, 모더레이션)
-- 소프트 삭제, FTS 검색, 레이트리밋, 관리자 초기 부트스트랩
+Next.js + Supabase 기반 자유 게시판 MVP입니다.  
+회원가입/로그인, 다중 게시판, 게시글/댓글/신고/좋아요, 관리자 운영 기능, 통합 검색(FTS), 로컬 Supabase 스택 테스트까지 포함합니다.
 
-## Tech Stack
+## 목차
 
-- Next.js 16 (App Router, TypeScript)
-- Supabase (Auth + Postgres + RLS)
-- Netlify (`@netlify/plugin-nextjs`)
-- Vitest
+- [핵심 구현 기능](#핵심-구현-기능)
+- [기술 스택](#기술-스택)
+- [프로젝트 구조](#프로젝트-구조)
+- [화면 라우트](#화면-라우트)
+- [API 라우트](#api-라우트)
+- [데이터베이스 설계](#데이터베이스-설계)
+- [통합 검색 FTS](#통합-검색-fts)
+- [로컬 실행 (Supabase Local Stack)](#로컬-실행-supabase-local-stack)
+- [환경변수](#환경변수)
+- [스크립트](#스크립트)
+- [테스트](#테스트)
+- [Netlify 배포](#netlify-배포)
+- [운영 메모](#운영-메모)
 
-## 로컬 전용 테스트 (Cloud Supabase 불필요)
+## 핵심 구현 기능
 
-이 프로젝트는 Docker + Supabase CLI 로컬 스택으로 테스트합니다.
+### 사용자 기능
 
-### 1) 설치
+- 이메일/비밀번호 회원가입, 로그인 (`/signup`, `/login`)
+- 이메일 인증 없이 즉시 세션 발급 (로컬 설정 기준)
+- 게시판 목록/진입 (`/b/[slug]`)
+- 글 작성/수정/소프트 삭제
+- 댓글/대댓글(1단계) 작성/수정/소프트 삭제
+- 게시글 좋아요 토글
+- 게시글/댓글 신고
+- 통합 검색 (`/search`) 및 보드 내 검색 (`/b/[slug]?q=...`)
+
+### 관리자 기능
+
+- 관리자 대시보드 (`/admin`)
+- 게시판 직접 생성/복제 (`/admin/boards`)
+- 게시판 복제 시 slug 충돌 자동 해결 (`-2`, `-3`, ...)
+- 유저 목록/검색/권한 변경/정지/복구/활동 조회 (`/admin/users`)
+- 신고 목록 조회 및 처리 (`/admin/reports`)
+- 게시글/댓글 상태 모더레이션 (`published/hidden/deleted`)
+- 모더레이션 감사 로그 저장 (`moderation_actions`)
+
+### 보안/운영 기능
+
+- RLS(Row Level Security) + 서버 전용 `service_role` 분리
+- 정지 유저 쓰기 제한(글/댓글/좋아요/신고)
+- IP + 계정 기반 레이트리밋 (`rate_limits` + RPC)
+- 소프트 삭제 정책 (`deleted_at`, `deleted_by`, `status`)
+- 관리자 초기 부트스트랩 1회 자동 승격
+- `GET /api/health` 환경변수/런타임 헬스체크
+
+## 기술 스택
+
+- `Next.js 16` (App Router, Route Handlers)
+- `React 19`
+- `TypeScript`
+- `Supabase` (Auth + Postgres + RLS + RPC)
+- `Zod` (입력 검증)
+- `Vitest` (단위 테스트)
+- `Netlify` + `@netlify/plugin-nextjs`
+
+## 프로젝트 구조
+
+```text
+.
+├── src/
+│   ├── app/
+│   │   ├── api/                 # 공개/관리자 API
+│   │   ├── admin/               # 관리자 화면
+│   │   ├── b/[slug]/            # 보드 목록/작성
+│   │   ├── p/[postId]/          # 글 상세
+│   │   ├── search/              # 통합 검색
+│   │   ├── login/, signup/      # 인증 화면
+│   │   └── page.tsx             # 홈
+│   ├── components/              # AuthProvider, TopNav
+│   ├── lib/
+│   │   ├── api/                 # auth/rate-limit/errors/utils
+│   │   └── supabase/            # browser/server client
+│   └── types/                   # domain, zod schemas
+├── supabase/
+│   ├── config.toml
+│   ├── migrations/
+│   └── seed.sql
+├── scripts/
+│   └── sync-local-supabase-env.sh
+├── netlify.toml
+└── docs/
+```
+
+## 화면 라우트
+
+| 경로 | 설명 |
+| --- | --- |
+| `/` | 홈 (게시판 목록 + freeboard 최신글) |
+| `/signup` | 회원가입 |
+| `/login` | 로그인 |
+| `/search` | 통합 검색 결과 |
+| `/b/[slug]` | 보드 글 목록/검색 |
+| `/b/[slug]/write` | 글 작성 |
+| `/p/[postId]` | 글 상세 + 댓글 트리 |
+| `/admin` | 관리자 대시보드 |
+| `/admin/boards` | 게시판 생성/복제 |
+| `/admin/users` | 유저 관리 |
+| `/admin/reports` | 신고 관리 |
+
+## API 라우트
+
+모든 응답은 기본적으로 아래 포맷을 사용합니다.
+
+```json
+{ "ok": true, "data": { } }
+```
+
+```json
+{ "ok": false, "error": { "message": "..." } }
+```
+
+인증이 필요한 API는 `Authorization: Bearer <access_token>` 헤더를 사용합니다.
+
+### Public API
+
+| Method | Path | 설명 |
+| --- | --- | --- |
+| `GET` | `/api/health` | 헬스체크 (환경변수 검증 포함) |
+| `POST` | `/api/auth/signup` | 회원가입 |
+| `POST` | `/api/auth/login` | 로그인 |
+| `GET` | `/api/me` | 내 프로필 조회 |
+| `GET` | `/api/boards` | 게시판 목록 |
+| `GET` | `/api/boards/[slug]/posts` | 게시글 목록/검색/페이지네이션(20) |
+| `POST` | `/api/boards/[slug]/posts` | 게시글 작성 |
+| `GET` | `/api/posts/[postId]` | 게시글 상세 + 댓글 트리 |
+| `PATCH` | `/api/posts/[postId]` | 게시글 수정 |
+| `DELETE` | `/api/posts/[postId]` | 게시글 소프트 삭제 |
+| `POST` | `/api/posts/[postId]/comments` | 댓글/대댓글 작성 |
+| `PATCH` | `/api/comments/[commentId]` | 댓글 수정 |
+| `DELETE` | `/api/comments/[commentId]` | 댓글 소프트 삭제 |
+| `POST` | `/api/posts/[postId]/like` | 좋아요 토글 |
+| `POST` | `/api/reports` | 신고 생성 |
+| `GET` | `/api/search` | 통합 검색(FTS) |
+
+### Admin API
+
+| Method | Path | 설명 |
+| --- | --- | --- |
+| `POST` | `/api/admin/boards/create` | 게시판 생성 |
+| `POST` | `/api/admin/boards/clone` | 게시판/템플릿 기반 복제 |
+| `GET` | `/api/admin/users` | 유저 목록/검색 |
+| `PATCH` | `/api/admin/users/[userId]/role` | 권한 변경 |
+| `PATCH` | `/api/admin/users/[userId]/suspend` | 정지 |
+| `PATCH` | `/api/admin/users/[userId]/restore` | 정지 해제 |
+| `GET` | `/api/admin/users/[userId]/activity` | 유저 활동 조회 |
+| `PATCH` | `/api/admin/moderation/posts/[postId]` | 게시글 모더레이션 |
+| `PATCH` | `/api/admin/moderation/comments/[commentId]` | 댓글 모더레이션 |
+| `GET` | `/api/admin/reports` | 신고 목록 조회 |
+| `PATCH` | `/api/admin/reports` | 신고 처리(`resolved/rejected`) |
+
+## 데이터베이스 설계
+
+마이그레이션 파일:
+
+- `supabase/migrations/202602170001_init_freeboard.sql`
+- `supabase/migrations/202602170002_add_global_search_rpc.sql`
+- `supabase/migrations/202602170003_fix_search_prefix_matching.sql`
+
+핵심 테이블:
+
+| 테이블 | 용도 |
+| --- | --- |
+| `profiles` | 사용자 프로필/역할/정지 정보 |
+| `boards` | 게시판 설정/가시성/작성 정책 |
+| `board_templates` | 게시판 템플릿 저장 |
+| `posts` | 게시글 + `search_tsv` |
+| `comments` | 댓글/대댓글(1단계) |
+| `post_likes` | 게시글 좋아요 |
+| `reports` | 신고 |
+| `moderation_actions` | 관리자 조치 감사 로그 |
+| `rate_limits` | 액션별 제한 카운터 |
+| `app_settings` | 앱 설정/부트스트랩 플래그 |
+
+적용 요소:
+
+- `search_tsv` GIN 인덱스
+- `posts/comments` 카운터 갱신 트리거
+- 댓글 depth(1단계) 강제 트리거
+- `consume_rate_limit` RPC
+- 모든 핵심 테이블 RLS 활성화 + 정책 적용
+
+## 통합 검색 FTS
+
+`/api/search`는 `search_posts_fts` RPC를 호출합니다.
+
+- 파서: Postgres `simple`
+- 질의: `websearch_to_tsquery` + prefix `to_tsquery(...:*)` 병행
+- 정렬: 관련도(rank) + 최신성 보정
+- 일반 사용자: 공개 보드 + `published`만 노출
+- 관리자: `published/hidden/pending/deleted` 전체 조회 가능
+- 페이지 크기: `20` 고정
+
+예시:
+
+```bash
+curl "http://127.0.0.1:3000/api/search?q=사이버&page=1"
+```
+
+## 로컬 실행 (Supabase Local Stack)
+
+### 사전 요구사항
+
+- Node.js 20+
+- npm
+- Docker Desktop (daemon 실행 상태)
+
+### 빠른 시작
 
 ```bash
 npm install
-```
-
-### 2) 로컬 Supabase 기동 + env 자동 동기화
-
-```bash
 npm run local:up
-```
-
-이 명령은 다음을 수행합니다.
-
-- `npx supabase start`
-- `scripts/sync-local-supabase-env.sh` 실행
-- `.env.local` 자동 갱신
-  - `NEXT_PUBLIC_SUPABASE_URL`
-  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-  - `SUPABASE_SERVICE_ROLE_KEY`
-  - `ADMIN_BOOTSTRAP_EMAIL` (없으면 `admin@local.test`)
-  - rate-limit 관련 키 (기존 값 유지, 없으면 기본값)
-
-### 3) DB 리셋/마이그레이션 적용 (최초 1회 또는 스키마 변경 시)
-
-```bash
 npm run db:local:reset
-```
-
-### 4) 앱 실행
-
-```bash
 npm run dev
 ```
 
-### 5) 상태 확인
+헬스체크:
 
 ```bash
-curl http://localhost:3000/api/health
+curl http://127.0.0.1:3000/api/health
 ```
 
-정상이면 `{"ok":true,...}` 형태가 반환됩니다.
+정상 응답 예시:
 
-### 6) 로컬 관리자 부트스트랩 시나리오
+```json
+{"ok":true,"data":{"status":"ok","timestamp":"..."}}
+```
 
-1. `/signup`에서 `admin@local.test`로 회원가입
-2. 로그인 후 `GET /api/me` 또는 상단 role 표시에서 `admin` 확인
-3. `/admin/boards`에서 게시판 생성/복제 테스트
+### 로컬 관리자 부트스트랩 (1회)
 
-### 종료/상태 확인
+1. `/signup`에서 `admin@local.test`로 가입
+2. 로그인 시 자동 admin 승격
+3. `/admin` 진입 후 관리자 기능 사용
+
+### 종료
 
 ```bash
 npm run db:local:status
 npm run local:down
 ```
 
-## Scripts
+## 환경변수
+
+`.env.local`은 `npm run env:local:sync`로 자동 갱신됩니다.
+
+| 변수명 | 설명 | 기본값 |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase API URL | 자동 주입 |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 브라우저용 anon key | 자동 주입 |
+| `SUPABASE_SERVICE_ROLE_KEY` | 서버 전용 key | 자동 주입 |
+| `ADMIN_BOOTSTRAP_EMAIL` | 초기 관리자 이메일 | `admin@local.test` |
+| `RATE_LIMIT_WINDOW_SECONDS` | 레이트리밋 윈도우 | `60` |
+| `RATE_LIMIT_MAX_SIGNUP` | 가입 제한 | `5` |
+| `RATE_LIMIT_MAX_POST` | 게시글 작성 제한 | `10` |
+| `RATE_LIMIT_MAX_COMMENT` | 댓글 작성 제한 | `20` |
+| `RATE_LIMIT_MAX_REPORT` | 신고 제한 | `10` |
+
+## 스크립트
 
 ```bash
+# app
 npm run dev
+npm run build
+npm run start
 npm run lint
 npm run test
-npm run build
 
+# local supabase
 npm run db:local:start
 npm run db:local:stop
 npm run db:local:status
@@ -92,49 +287,63 @@ npm run local:up
 npm run local:down
 ```
 
-## 주요 API
+참고:
 
-### Public
+- `db:local:start`는 로컬 개발 가속을 위해 일부 Supabase 서비스(studio/realtime/storage 등)를 제외하고 기동합니다.
+- `supabase/seed.sql`은 현재 의도적으로 비어 있습니다.
 
-- `GET /api/boards`
-- `GET /api/boards/{slug}/posts?page=1&q=...`
-- `POST /api/boards/{slug}/posts`
-- `GET /api/posts/{postId}`
-- `PATCH /api/posts/{postId}`
-- `DELETE /api/posts/{postId}`
-- `POST /api/posts/{postId}/comments`
-- `PATCH /api/comments/{commentId}`
-- `DELETE /api/comments/{commentId}`
-- `POST /api/posts/{postId}/like`
-- `POST /api/reports`
-- `GET /api/me`
+## 테스트
 
-### Admin
+```bash
+npm run lint
+npm run test
+npm run build
+```
 
-- `POST /api/admin/boards/create`
-- `POST /api/admin/boards/clone`
-- `GET /api/admin/users`
-- `PATCH /api/admin/users/{userId}/role`
-- `PATCH /api/admin/users/{userId}/suspend`
-- `PATCH /api/admin/users/{userId}/restore`
-- `GET /api/admin/users/{userId}/activity`
-- `PATCH /api/admin/moderation/posts/{postId}`
-- `PATCH /api/admin/moderation/comments/{commentId}`
-- `GET /api/admin/reports`
-- `PATCH /api/admin/reports`
+현재 단위 테스트:
 
-## 관리자 부트스트랩
-
-로그인 시 다음 조건을 만족하면 1회만 자동 admin 승격됩니다.
-
-- 로그인 유저 이메일 == `ADMIN_BOOTSTRAP_EMAIL`
-- `app_settings.bootstrap_admin_assigned` 미설정
+- `src/lib/api/slug.test.ts`
+- `src/lib/api/netlify.test.ts`
 
 ## Netlify 배포
 
-1. 저장소 연결
-2. Build command: `npm run build`
-3. 환경변수 등록 (`.env.example` 기준)
-4. 배포
+`netlify.toml`이 포함되어 있으며 Next.js 플러그인 기반 배포를 사용합니다.
 
-`netlify.toml`에 Next.js plugin 설정이 포함되어 있습니다.
+```toml
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+```
+
+배포 시 필수 환경변수:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `ADMIN_BOOTSTRAP_EMAIL`
+- `RATE_LIMIT_WINDOW_SECONDS`
+- `RATE_LIMIT_MAX_SIGNUP`
+- `RATE_LIMIT_MAX_POST`
+- `RATE_LIMIT_MAX_COMMENT`
+- `RATE_LIMIT_MAX_REPORT`
+
+프로덕션에서는 Supabase Cloud 프로젝트 값을 사용하면 됩니다.
+
+## 운영 메모
+
+- 댓글 대댓글은 1단계만 허용됩니다.
+- 삭제는 소프트 삭제 우선입니다.
+- 모바일 터치 영역은 주요 입력/버튼에 대해 44px 기준으로 폴리싱되어 있습니다.
+- 홈 화면 최신글은 현재 `freeboard` 기준으로 표시됩니다.
+- 로그인 레이트리밋은 현재 `RATE_LIMIT_MAX_SIGNUP` 값을 공유합니다.
+
+---
+
+문서/설계 참고:
+
+- `docs/PLAN.md`
+- `docs/PLAN_LOCAL.md`
+- `docs/walkthrough.md`
