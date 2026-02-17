@@ -9,7 +9,7 @@ export async function consumeRateLimit(action: RateLimitAction, actorKey: string
 
   const maxByAction: Record<RateLimitAction, number> = {
     signup: env.rateLimitMaxSignup,
-    login: env.rateLimitMaxSignup,
+    login: env.rateLimitMaxLogin,
     create_post: env.rateLimitMaxPost,
     create_comment: env.rateLimitMaxComment,
     report: env.rateLimitMaxReport,

@@ -1,6 +1,15 @@
 const requiredServerEnv = ["SUPABASE_SERVICE_ROLE_KEY", "ADMIN_BOOTSTRAP_EMAIL"] as const;
 const requiredPublicEnv = ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"] as const;
 
+function envNumber(key: string, fallback: number) {
+  const raw = process.env[key];
+  const parsed = Number(raw ?? fallback);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return parsed;
+}
+
 export function assertEnv() {
   for (const key of requiredPublicEnv) {
     if (!process.env[key]) {
@@ -37,10 +46,11 @@ export function getServerEnv() {
   return {
     serviceRoleKey,
     adminBootstrapEmail: adminBootstrapEmail.toLowerCase().trim(),
-    rateLimitWindowSeconds: Number(process.env.RATE_LIMIT_WINDOW_SECONDS ?? 60),
-    rateLimitMaxSignup: Number(process.env.RATE_LIMIT_MAX_SIGNUP ?? 5),
-    rateLimitMaxPost: Number(process.env.RATE_LIMIT_MAX_POST ?? 10),
-    rateLimitMaxComment: Number(process.env.RATE_LIMIT_MAX_COMMENT ?? 20),
-    rateLimitMaxReport: Number(process.env.RATE_LIMIT_MAX_REPORT ?? 10),
+    rateLimitWindowSeconds: envNumber("RATE_LIMIT_WINDOW_SECONDS", 60),
+    rateLimitMaxSignup: envNumber("RATE_LIMIT_MAX_SIGNUP", 5),
+    rateLimitMaxLogin: envNumber("RATE_LIMIT_MAX_LOGIN", 10),
+    rateLimitMaxPost: envNumber("RATE_LIMIT_MAX_POST", 10),
+    rateLimitMaxComment: envNumber("RATE_LIMIT_MAX_COMMENT", 20),
+    rateLimitMaxReport: envNumber("RATE_LIMIT_MAX_REPORT", 10),
   };
 }

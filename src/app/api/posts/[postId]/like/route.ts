@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { assertNotSuspended, requireAuth } from "@/lib/api/auth";
+import { appError } from "@/lib/api/app-error";
+import { assertBoardWriteAccess, getBoardByIdForWrite } from "@/lib/api/board-access";
 import { handleRouteError } from "@/lib/api/errors";
 import { fail, ok } from "@/lib/api/response";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
@@ -16,49 +18,42 @@ export async function POST(request: Request, context: { params: Promise<{ postId
     const { postId } = paramsSchema.parse(await context.params);
     const admin = getSupabaseAdminClient();
 
-    const { data: post } = await admin
+    const { data: post, error: postError } = await admin
       .from("posts")
-      .select("id,status,deleted_at")
+      .select("id,board_id,status,deleted_at")
       .eq("id", postId)
       .maybeSingle();
+
+    if (postError) {
+      throw postError;
+    }
 
     if (!post || post.deleted_at || post.status !== "published") {
       return fail(404, "Post not found");
     }
 
-    const { data: existing } = await admin
-      .from("post_likes")
-      .select("post_id,user_id")
-      .eq("post_id", postId)
-      .eq("user_id", ctx.userId)
-      .maybeSingle();
+    const board = await getBoardByIdForWrite(admin, post.board_id);
+    assertBoardWriteAccess({
+      board,
+      actor: { userId: ctx.userId, isAdmin: ctx.isAdmin },
+      action: "like_post",
+    });
 
-    let liked = false;
+    const { data: toggled, error: toggleError } = await admin.rpc("toggle_post_like", {
+      p_post_id: postId,
+      p_user_id: ctx.userId,
+    });
 
-    if (existing) {
-      const { error } = await admin
-        .from("post_likes")
-        .delete()
-        .eq("post_id", postId)
-        .eq("user_id", ctx.userId);
-
-      if (error) {
-        throw error;
-      }
-
-      liked = false;
-    } else {
-      const { error } = await admin.from("post_likes").insert({ post_id: postId, user_id: ctx.userId });
-      if (error) {
-        throw error;
-      }
-
-      liked = true;
+    if (toggleError) {
+      throw toggleError;
     }
 
-    const { data: updatedPost } = await admin.from("posts").select("like_count").eq("id", postId).single();
+    const row = Array.isArray(toggled) ? toggled[0] : null;
+    if (!row) {
+      throw appError("CONFLICT", "Unable to toggle like state");
+    }
 
-    return ok({ liked, like_count: updatedPost?.like_count ?? 0 });
+    return ok({ liked: Boolean(row.liked), like_count: Number(row.like_count ?? 0) });
   } catch (error) {
     return handleRouteError(error);
   }
