@@ -268,7 +268,6 @@ npm run local:down
 | `ADMIN_BOOTSTRAP_EMAIL` | 초기 관리자 이메일 | `admin@local.test` |
 | `RATE_LIMIT_WINDOW_SECONDS` | 레이트리밋 윈도우 | `60` |
 | `RATE_LIMIT_MAX_SIGNUP` | 가입 제한 | `5` |
-| `RATE_LIMIT_MAX_LOGIN` | 로그인 제한 | `10` |
 | `RATE_LIMIT_MAX_POST` | 게시글 작성 제한 | `10` |
 | `RATE_LIMIT_MAX_COMMENT` | 댓글 작성 제한 | `20` |
 | `RATE_LIMIT_MAX_REPORT` | 신고 제한 | `10` |
@@ -332,7 +331,6 @@ npm run build
 - `ADMIN_BOOTSTRAP_EMAIL`
 - `RATE_LIMIT_WINDOW_SECONDS`
 - `RATE_LIMIT_MAX_SIGNUP`
-- `RATE_LIMIT_MAX_LOGIN`
 - `RATE_LIMIT_MAX_POST`
 - `RATE_LIMIT_MAX_COMMENT`
 - `RATE_LIMIT_MAX_REPORT`
@@ -345,6 +343,7 @@ npm run build
 - 삭제는 소프트 삭제 우선입니다.
 - 모바일 터치 영역은 주요 입력/버튼에 대해 44px 기준으로 폴리싱되어 있습니다.
 - 홈 화면 최신글은 현재 `freeboard` 기준으로 표시됩니다.
+- 로그인 레이트리밋은 현재 `RATE_LIMIT_MAX_SIGNUP` 값을 공유합니다.
 
 ---
 

@@ -39,7 +39,6 @@ export function getServerEnv() {
     adminBootstrapEmail: adminBootstrapEmail.toLowerCase().trim(),
     rateLimitWindowSeconds: Number(process.env.RATE_LIMIT_WINDOW_SECONDS ?? 60),
     rateLimitMaxSignup: Number(process.env.RATE_LIMIT_MAX_SIGNUP ?? 5),
-    rateLimitMaxLogin: Number(process.env.RATE_LIMIT_MAX_LOGIN ?? process.env.RATE_LIMIT_MAX_SIGNUP ?? 5),
     rateLimitMaxPost: Number(process.env.RATE_LIMIT_MAX_POST ?? 10),
     rateLimitMaxComment: Number(process.env.RATE_LIMIT_MAX_COMMENT ?? 20),
     rateLimitMaxReport: Number(process.env.RATE_LIMIT_MAX_REPORT ?? 10),

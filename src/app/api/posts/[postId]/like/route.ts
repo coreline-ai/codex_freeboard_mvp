@@ -26,17 +26,39 @@ export async function POST(request: Request, context: { params: Promise<{ postId
       return fail(404, "Post not found");
     }
 
-    const { data: liked, error: toggleError } = await admin.rpc("toggle_post_like", {
-      p_post_id: postId,
-      p_user_id: ctx.userId,
-    });
-    if (toggleError) {
-      throw toggleError;
+    const { data: existing } = await admin
+      .from("post_likes")
+      .select("post_id,user_id")
+      .eq("post_id", postId)
+      .eq("user_id", ctx.userId)
+      .maybeSingle();
+
+    let liked = false;
+
+    if (existing) {
+      const { error } = await admin
+        .from("post_likes")
+        .delete()
+        .eq("post_id", postId)
+        .eq("user_id", ctx.userId);
+
+      if (error) {
+        throw error;
+      }
+
+      liked = false;
+    } else {
+      const { error } = await admin.from("post_likes").insert({ post_id: postId, user_id: ctx.userId });
+      if (error) {
+        throw error;
+      }
+
+      liked = true;
     }
 
     const { data: updatedPost } = await admin.from("posts").select("like_count").eq("id", postId).single();
 
-    return ok({ liked: Boolean(liked), like_count: updatedPost?.like_count ?? 0 });
+    return ok({ liked, like_count: updatedPost?.like_count ?? 0 });
   } catch (error) {
     return handleRouteError(error);
   }
