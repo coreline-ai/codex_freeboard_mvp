@@ -173,6 +173,8 @@ Next.js + Supabase 기반 자유 게시판 MVP입니다.
 - `supabase/migrations/202602170001_init_freeboard.sql`
 - `supabase/migrations/202602170002_add_global_search_rpc.sql`
 - `supabase/migrations/202602170003_fix_search_prefix_matching.sql`
+- `supabase/migrations/202602170004_toggle_post_like_rpc.sql`
+- `supabase/migrations/202602170005_admin_profiles_safe_search.sql`
 
 핵심 테이블:
 
@@ -264,10 +266,12 @@ npm run local:down
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase API URL | 자동 주입 |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 브라우저용 anon key | 자동 주입 |
+| `NEXT_PUBLIC_SITE_URL` | canonical/sitemap 기준 URL | `http://127.0.0.1:3000` |
 | `SUPABASE_SERVICE_ROLE_KEY` | 서버 전용 key | 자동 주입 |
 | `ADMIN_BOOTSTRAP_EMAIL` | 초기 관리자 이메일 | `admin@local.test` |
 | `RATE_LIMIT_WINDOW_SECONDS` | 레이트리밋 윈도우 | `60` |
 | `RATE_LIMIT_MAX_SIGNUP` | 가입 제한 | `5` |
+| `RATE_LIMIT_MAX_LOGIN` | 로그인 제한 | `10` |
 | `RATE_LIMIT_MAX_POST` | 게시글 작성 제한 | `10` |
 | `RATE_LIMIT_MAX_COMMENT` | 댓글 작성 제한 | `20` |
 | `RATE_LIMIT_MAX_REPORT` | 신고 제한 | `10` |
@@ -281,6 +285,9 @@ npm run build
 npm run start
 npm run lint
 npm run test
+npm run test:unit
+npm run test:integration
+npm run test:all
 
 # local supabase
 npm run db:local:start
@@ -301,14 +308,16 @@ npm run local:down
 
 ```bash
 npm run lint
-npm run test
+npm run test:unit
+npm run test:integration
 npm run build
 ```
 
-현재 단위 테스트:
+통합 테스트는 로컬 Supabase가 실행 중이고 아래 플래그를 준 경우에만 동작합니다.
 
-- `src/lib/api/slug.test.ts`
-- `src/lib/api/netlify.test.ts`
+```bash
+RUN_SUPABASE_INTEGRATION_TESTS=1 npm run test:integration
+```
 
 ## Netlify 배포
 
@@ -327,10 +336,12 @@ npm run build
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_SITE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `ADMIN_BOOTSTRAP_EMAIL`
 - `RATE_LIMIT_WINDOW_SECONDS`
 - `RATE_LIMIT_MAX_SIGNUP`
+- `RATE_LIMIT_MAX_LOGIN`
 - `RATE_LIMIT_MAX_POST`
 - `RATE_LIMIT_MAX_COMMENT`
 - `RATE_LIMIT_MAX_REPORT`
@@ -343,7 +354,8 @@ npm run build
 - 삭제는 소프트 삭제 우선입니다.
 - 모바일 터치 영역은 주요 입력/버튼에 대해 44px 기준으로 폴리싱되어 있습니다.
 - 홈 화면 최신글은 현재 `freeboard` 기준으로 표시됩니다.
-- 로그인 레이트리밋은 현재 `RATE_LIMIT_MAX_SIGNUP` 값을 공유합니다.
+- 로그인 레이트리밋은 `RATE_LIMIT_MAX_LOGIN`으로 별도 제어합니다.
+- Core Web Vitals(INP/LCP/CLS)는 `/api/metrics/web-vitals`로 수집 포인트를 제공합니다.
 
 ---
 
