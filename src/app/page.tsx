@@ -1,65 +1,134 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import type { Board } from "@/types/domain";
+
+interface HomePost {
+  id: string;
+  title: string;
+  created_at: string;
+  author_nickname: string;
+  comment_count?: number;
+  like_count?: number;
+}
+
+export default function HomePage() {
+  const [boards, setBoards] = useState<Board[]>([]);
+  const [latestPosts, setLatestPosts] = useState<HomePost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      setLoading(true);
+
+      const boardsRes = await fetch("/api/boards", { cache: "no-store" });
+      const boardsPayload = await boardsRes.json();
+
+      if (!boardsPayload.ok) {
+        if (mounted) {
+          setError(boardsPayload.error?.message ?? "게시판 목록을 불러오지 못했습니다.");
+          setLoading(false);
+        }
+        return;
+      }
+
+      if (mounted) {
+        setBoards(boardsPayload.data ?? []);
+      }
+
+      const feedRes = await fetch("/api/boards/freeboard/posts?page=1", { cache: "no-store" });
+      const feedPayload = await feedRes.json();
+
+      if (mounted) {
+        if (feedPayload.ok) {
+          setLatestPosts((feedPayload.data.posts ?? []).slice(0, 8));
+          setError(null);
+        } else {
+          setError(feedPayload.error?.message ?? "최신 글을 불러오지 못했습니다.");
+        }
+        setLoading(false);
+      }
+    }
+
+    void load();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="page-shell">
+      <section className="hero-panel stack">
+        <h1 className="page-title">깔끔한 커뮤니티 게시판</h1>
+        <p className="page-description">
+          공개 보드에서 자유롭게 글을 작성하고, 관리자는 보드 생성/복제와 유저 운영까지 한 번에 처리할 수 있습니다.
+        </p>
+        <div className="row">
+          <Link className="button primary" href="/b/freeboard">
+            테크 뉴스 보드 보기
+          </Link>
+          <Link className="button" href="/b/ai-freeboard">
+            AI 보드 보기
+          </Link>
+          <Link className="button ghost" href="/admin">
+            관리자 대시보드
+          </Link>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </section>
+
+      {error ? <div className="error">{error}</div> : null}
+
+      <section className="grid-2">
+        <article className="card stack">
+          <div className="panel-header">
+            <h2 className="panel-title">게시판 목록</h2>
+            <span className="muted">총 {boards.length}개</span>
+          </div>
+
+          {loading ? <div className="empty-state">게시판을 불러오는 중입니다...</div> : null}
+
+          {!loading && boards.length === 0 ? <div className="empty-state">생성된 게시판이 없습니다.</div> : null}
+
+          <div className="list">
+            {boards.map((board) => (
+              <Link key={board.id} href={`/b/${board.slug}`} className="list-item">
+                <div className="row" style={{ justifyContent: "space-between" }}>
+                  <strong>{board.name}</strong>
+                  <span className="badge">/{board.slug}</span>
+                </div>
+                <div className="muted">{board.description || "설명이 없습니다."}</div>
+              </Link>
+            ))}
+          </div>
+        </article>
+
+        <article className="card stack">
+          <div className="panel-header">
+            <h2 className="panel-title">최신 글</h2>
+            <span className="muted">freeboard 기준</span>
+          </div>
+
+          {loading ? <div className="empty-state">최신 글을 불러오는 중입니다...</div> : null}
+
+          {!loading && latestPosts.length === 0 ? <div className="empty-state">최신 글이 없습니다.</div> : null}
+
+          <div className="list">
+            {latestPosts.map((post) => (
+              <Link key={post.id} href={`/p/${post.id}`} className="list-item">
+                <strong>{post.title}</strong>
+                <div className="muted">
+                  {post.author_nickname} · {new Date(post.created_at).toLocaleString()}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </article>
+      </section>
     </div>
   );
 }

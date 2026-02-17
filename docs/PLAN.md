@@ -191,6 +191,9 @@
 11. `POST /api/reports`
 - 게시글/댓글 신고
 
+12. `GET /api/search?q=...&page=1`
+- 공개 게시판 통합 FTS 검색 (관리자는 전체 상태 검색)
+
 ### 3.2 관리자 API
 1. `POST /api/admin/boards/create`
 - 직접 생성
@@ -233,6 +236,7 @@
 ## 4) 화면/라우팅(결정 완료)
 - `/` : 최신 글 피드 + 보드 바로가기
 - `/signup`, `/login`
+- `/search` : 통합 검색 결과
 - `/b/[slug]` : 게시판 목록
 - `/b/[slug]/write`
 - `/p/[postId]` : 글 상세 + 댓글

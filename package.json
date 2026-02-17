@@ -6,21 +6,34 @@
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "db:local:start": "npx supabase start --exclude studio,mailpit,imgproxy,storage-api,realtime,logflare,vector,supavisor,edge-runtime",
+    "db:local:stop": "npx supabase stop",
+    "db:local:status": "npx supabase status",
+    "db:local:reset": "npx supabase db reset --yes",
+    "env:local:sync": "bash scripts/sync-local-supabase-env.sh",
+    "local:up": "npm run db:local:start && npm run env:local:sync",
+    "local:down": "npm run db:local:stop"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.95.3",
     "next": "16.1.6",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@netlify/plugin-nextjs": "^5.15.8",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "supabase": "^2.76.9",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.0.18"
   }
 }

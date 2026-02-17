@@ -1,0 +1,2 @@
+-- Intentionally empty for local development.
+-- Seed data is optional; create initial admin via signup using ADMIN_BOOTSTRAP_EMAIL.
