@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { assertNotSuspended, requireAuth } from "@/lib/api/auth";
+import { appError } from "@/lib/api/app-error";
+import { assertBoardWriteAccess, getBoardByIdForWrite } from "@/lib/api/board-access";
 import { handleRouteError } from "@/lib/api/errors";
 import { getRequestIp, hashActorKey } from "@/lib/api/netlify";
 import { consumeRateLimit } from "@/lib/api/rate-limit";
@@ -22,7 +24,7 @@ export async function POST(request: Request, context: { params: Promise<{ postId
     const ipAllowed = await consumeRateLimit("create_comment", hashActorKey(`ip:${ip}`));
 
     if (!userAllowed || !ipAllowed) {
-      throw new Error("RATE_LIMITED:create_comment");
+      throw appError("RATE_LIMITED");
     }
 
     const { postId } = paramsSchema.parse(await context.params);
@@ -44,16 +46,12 @@ export async function POST(request: Request, context: { params: Promise<{ postId
       return fail(404, "Post not found");
     }
 
-    const { data: board } = await admin
-      .from("boards")
-      .select("allow_comment")
-      .eq("id", post.board_id)
-      .is("deleted_at", null)
-      .maybeSingle();
-
-    if (!board?.allow_comment) {
-      return fail(403, "Comments are disabled for this board");
-    }
+    const board = await getBoardByIdForWrite(admin, post.board_id);
+    assertBoardWriteAccess({
+      board,
+      actor: { userId: ctx.userId, isAdmin: ctx.isAdmin },
+      action: "create_comment",
+    });
 
     if (body.parent_id) {
       const { data: parentComment } = await admin

@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { assertNotSuspended, getAuthContext, requireAuth } from "@/lib/api/auth";
+import { appError } from "@/lib/api/app-error";
+import { assertBoardWriteAccess, getBoardBySlugForWrite } from "@/lib/api/board-access";
 import { handleRouteError } from "@/lib/api/errors";
 import { consumeRateLimit } from "@/lib/api/rate-limit";
 import { getRequestIp, hashActorKey } from "@/lib/api/netlify";
@@ -113,27 +115,19 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     const ipAllowed = await consumeRateLimit("create_post", hashActorKey(`ip:${ip}`));
 
     if (!userAllowed || !ipAllowed) {
-      throw new Error("RATE_LIMITED:create_post");
+      throw appError("RATE_LIMITED");
     }
 
     const body = createPostSchema.parse(await safeJson(request));
     const { slug } = paramsSchema.parse(await context.params);
 
     const admin = getSupabaseAdminClient();
-    const { data: board, error: boardError } = await admin
-      .from("boards")
-      .select("*")
-      .eq("slug", slug)
-      .is("deleted_at", null)
-      .single();
-
-    if (boardError) {
-      throw boardError;
-    }
-
-    if (!board.allow_post) {
-      return fail(403, "Posting is disabled for this board");
-    }
+    const board = await getBoardBySlugForWrite(admin, slug);
+    assertBoardWriteAccess({
+      board,
+      actor: { userId: ctx.userId, isAdmin: ctx.isAdmin },
+      action: "create_post",
+    });
 
     const status = board.require_post_approval ? "pending" : "published";
 

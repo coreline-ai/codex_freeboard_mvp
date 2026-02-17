@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Profile } from "@/types/domain";
 import { maybeBootstrapAdmin } from "@/lib/api/admin-bootstrap";
+import { appError } from "@/lib/api/app-error";
 
 export interface AuthContext {
   token: string;
@@ -79,7 +80,7 @@ export async function getAuthContext(headers: Headers): Promise<AuthContext | nu
 export async function requireAuth(headers: Headers): Promise<AuthContext> {
   const ctx = await getAuthContext(headers);
   if (!ctx) {
-    throw new Error("UNAUTHORIZED");
+    throw appError("UNAUTHORIZED");
   }
 
   return ctx;
@@ -92,12 +93,12 @@ export function assertNotSuspended(profile: Profile) {
 
   const suspendedUntil = new Date(profile.suspended_until);
   if (suspendedUntil.getTime() > Date.now()) {
-    throw new Error("SUSPENDED");
+    throw appError("SUSPENDED");
   }
 }
 
 export function requireAdmin(ctx: AuthContext) {
   if (!ctx.isAdmin) {
-    throw new Error("FORBIDDEN");
+    throw appError("FORBIDDEN");
   }
 }

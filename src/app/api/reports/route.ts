@@ -1,4 +1,6 @@
 import { assertNotSuspended, requireAuth } from "@/lib/api/auth";
+import { appError } from "@/lib/api/app-error";
+import { assertBoardWriteAccess, getBoardByIdForWrite } from "@/lib/api/board-access";
 import { handleRouteError } from "@/lib/api/errors";
 import { getRequestIp, hashActorKey } from "@/lib/api/netlify";
 import { consumeRateLimit } from "@/lib/api/rate-limit";
@@ -17,7 +19,7 @@ export async function POST(request: Request) {
     const ipAllowed = await consumeRateLimit("report", hashActorKey(`ip:${ip}`));
 
     if (!userAllowed || !ipAllowed) {
-      throw new Error("RATE_LIMITED:report");
+      throw appError("RATE_LIMITED");
     }
 
     const body = createReportSchema.parse(await safeJson(request));
@@ -26,23 +28,48 @@ export async function POST(request: Request) {
     if (body.target_type === "post") {
       const { data: post } = await admin
         .from("posts")
-        .select("id,status,deleted_at")
+        .select("id,board_id,status,deleted_at")
         .eq("id", body.target_id)
         .maybeSingle();
 
       if (!post || post.deleted_at || post.status === "deleted") {
         return fail(404, "Target post not found");
       }
+
+      const board = await getBoardByIdForWrite(admin, post.board_id);
+      assertBoardWriteAccess({
+        board,
+        actor: { userId: ctx.userId, isAdmin: ctx.isAdmin },
+        action: "report",
+      });
     } else {
       const { data: comment } = await admin
         .from("comments")
-        .select("id,status,deleted_at")
+        .select("id,post_id,status,deleted_at")
         .eq("id", body.target_id)
         .maybeSingle();
 
       if (!comment || comment.deleted_at || comment.status === "deleted") {
         return fail(404, "Target comment not found");
       }
+
+      const { data: post } = await admin
+        .from("posts")
+        .select("board_id")
+        .eq("id", comment.post_id)
+        .is("deleted_at", null)
+        .maybeSingle();
+
+      if (!post) {
+        return fail(404, "Target comment not found");
+      }
+
+      const board = await getBoardByIdForWrite(admin, post.board_id);
+      assertBoardWriteAccess({
+        board,
+        actor: { userId: ctx.userId, isAdmin: ctx.isAdmin },
+        action: "report",
+      });
     }
 
     const { data, error } = await admin

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { appError } from "@/lib/api/app-error";
 import { handleRouteError } from "@/lib/api/errors";
 import { getRequestIp, hashActorKey } from "@/lib/api/netlify";
 import { consumeRateLimit } from "@/lib/api/rate-limit";
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
     const emailAllowed = await consumeRateLimit("signup", hashActorKey(`email:${body.email.toLowerCase()}`));
 
     if (!ipAllowed || !emailAllowed) {
-      throw new Error("RATE_LIMITED:signup");
+      throw appError("RATE_LIMITED");
     }
 
     const supabase = getSupabaseServerClient();
