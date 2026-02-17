@@ -1,4 +1,5 @@
 import { requireAdmin, requireAuth } from "@/lib/api/auth";
+import { buildAdminUserSearchFilter } from "@/lib/api/admin-search";
 import { handleRouteError } from "@/lib/api/errors";
 import { ok } from "@/lib/api/response";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
@@ -13,7 +14,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const page = Math.max(Number(searchParams.get("page") ?? 1) || 1, 1);
     const role = searchParams.get("role")?.trim();
-    const q = searchParams.get("q")?.trim();
+    const q = searchParams.get("q");
     const suspended = searchParams.get("suspended")?.trim();
 
     const admin = getSupabaseAdminClient();
@@ -28,8 +29,9 @@ export async function GET(request: Request) {
       query = query.eq("role", role);
     }
 
-    if (q) {
-      query = query.or(`email.ilike.%${q}%,nickname.ilike.%${q}%`);
+    const searchFilter = buildAdminUserSearchFilter(q);
+    if (searchFilter) {
+      query = query.or(searchFilter);
     }
 
     if (suspended === "true") {

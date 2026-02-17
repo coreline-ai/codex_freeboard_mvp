@@ -1,401 +1,365 @@
-# 🔍 Multi FreeBoard Codex — 코드 레벨 상세 리뷰
+# Multi FreeBoard Codex Walkthrough (Checklist)
 
-> **리뷰일**: 2026-02-17 | **대상**: 전체 소스 45개 파일 + SQL 마이그레이션 3개
+## 1) 문서 메타
 
----
-
-## 📊 전체 평가 요약
-
-| 영역 | 점수 | 핵심 코멘트 |
-|------|------|-------------|
-| 프로젝트 구조 | ⭐⭐⭐⭐ | 깔끔한 레이어 분리, 적절한 디렉토리 설계 |
-| 타입 안전성 | ⭐⭐⭐⭐ | Zod 스키마 + TS 타입 잘 분리 |
-| API 설계 | ⭐⭐⭐☆ | 일관적이나 중복 코드와 개선 여지 존재 |
-| 보안 | ⭐⭐⭐☆ | RLS + 서버 권한 분리 좋으나 SQL Injection 위험 1건 |
-| DB 설계 | ⭐⭐⭐⭐ | 트리거/RLS/인덱스가 체계적 |
-| 프론트엔드 | ⭐⭐⭐☆ | 기능적이나 [apiFetch](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/lib/client-api.ts#17-34) 미활용, 컴포넌트 분리 부족 |
-| 테스트 | ⭐⭐☆☆ | 테스트 파일 2개만 존재, 커버리지 매우 낮음 |
+- 기준 브랜치: `main`
+- 기준 커밋: `b62040d`
+- 검증일: `2026-02-17`
+- 코드 스냅샷:
+  - TypeScript/TSX 파일: `54`
+  - SQL 마이그레이션 파일: `3`
+- 참고: `docs/walkthrough.md.resolved` 파일은 현재 저장소에 없음
 
 ---
 
-## 🚨 Critical — 즉시 수정 필요
+## 2) 체크박스 사용 규칙
 
-### 1. SQL Injection 취약점 (admin users 검색)
-
-[route.ts](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/app/api/admin/users/route.ts#L32)에서 사용자 입력(`q`)을 필터링 없이 직접 `.or()` 쿼리에 삽입합니다.
-
-```typescript
-// ❌ 현재 코드 — SQL Injection 위험
-if (q) {
-  query = query.or(`email.ilike.%${q}%,nickname.ilike.%${q}%`);
-}
-```
-
-> [!CAUTION]
-> `q` 값에 `%`, `_`, 쉼표(`,`), 괄호([()](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/lib/api/response.ts#3-6)) 등의 특수문자를 넣으면 PostgREST 필터를 조작할 수 있습니다. 관리자 전용 API이지만 원칙적으로 위험합니다.
-
-```diff
-// ✅ 개선안 — 특수문자 이스케이프 또는 개별 필터 사용
--if (q) {
--  query = query.or(`email.ilike.%${q}%,nickname.ilike.%${q}%`);
--}
-+if (q) {
-+  const escaped = q.replace(/[%_]/g, '\\$&');
-+  query = query.or(`email.ilike.%${escaped}%,nickname.ilike.%${escaped}%`);
-+}
-```
+- [ ] 미완료
+- [x] 완료
+- 각 이슈의 상단 체크박스는 **해당 이슈 전체 완료** 상태를 의미
+- 이슈 내부 하위 체크박스(완료 조건)를 모두 `x`로 바꾸면 상단도 `x`로 갱신
+- `deferred` 항목은 정책 결정 전까지 `open` 상태로 유지하고, 결정 후 별도 완료 처리
 
 ---
 
-### 2. 좋아요 토글 Race Condition
+## 3) 핵심 요약
 
-[like/route.ts](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/app/api/posts/%5BpostId%5D/like/route.ts#L29-L57)에서 `SELECT → DELETE/INSERT` 패턴이 원자적이지 않습니다.
+- 총 이슈: `25`
+- Severity 분포:
+  - Critical: `3`
+  - High: `7`
+  - Medium: `8`
+  - Low: `7`
+- 현재 상태(초기값):
+  - [x] Open 항목 처리 시작
+  - [ ] Partial 항목 완료 전환
+  - [ ] Deferred 항목 의사결정 완료
 
-```typescript
-// ❌ 두 요청이 동시에 들어오면 중복 insert 또는 이중 delete 가능
-const { data: existing } = await admin
-  .from("post_likes").select(...).eq(...).maybeSingle();
+즉시 처리 Top 5:
 
-if (existing) { /* delete */ } else { /* insert */ }
-```
-
-> [!WARNING]
-> 동시 요청 시 토글 로직이 깨질 수 있습니다. `UPSERT` + `ON CONFLICT` DB 함수로 원자적 처리 권장.
-
-```sql
--- ✅ 개선안 — 원자적 토글 RPC
-CREATE FUNCTION toggle_post_like(p_post_id uuid, p_user_id uuid)
-RETURNS boolean LANGUAGE plpgsql AS $$
-DECLARE v_existed boolean;
-BEGIN
-  DELETE FROM post_likes WHERE post_id = p_post_id AND user_id = p_user_id;
-  GET DIAGNOSTICS v_existed = ROW_COUNT > 0;  -- Not exists, so it was deleted
-  IF NOT FOUND THEN
-    INSERT INTO post_likes(post_id, user_id) VALUES (p_post_id, p_user_id);
-    RETURN true;  -- liked
-  END IF;
-  RETURN false;  -- unliked
-END;
-$$;
-```
+- [x] W-001 관리자 사용자 검색 필터 인젝션 리스크
+- [x] W-002 좋아요 토글 경쟁 상태
+- [x] W-003 로그인 레이트리밋 매핑 오류
+- [ ] W-008 에러 분류 미흡 (`handleRouteError`)
+- [ ] W-006 `apiFetch` 비-JSON 응답 내구성 부족
 
 ---
 
-### 3. Rate Limit에 `login` 항목이 `signup` 한도 사용
+## 4) 이슈 체크리스트 (Issue Ledger)
 
-[rate-limit.ts](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/lib/api/rate-limit.ts#L12) — `login`의 max 값이 `rateLimitMaxSignup`으로 잘못 매핑되어 있습니다.
+### Critical
 
-```typescript
-// ❌ 현재 코드
-const maxByAction: Record<RateLimitAction, number> = {
-  signup: env.rateLimitMaxSignup,
-  login: env.rateLimitMaxSignup,  // 🐛 signup 한도를 재사용!
-  ...
-};
-```
+- [x] **W-001 관리자 사용자 검색 필터 인젝션 리스크** `[Critical][resolved]`
+  - Evidence: `src/app/api/admin/users/route.ts:31`
+  - Impact: 사용자 입력이 `.or(...)` 필터 문자열에 직접 들어감
+  - Fix Plan: 입력 이스케이프 또는 필터 분리
+  - 완료 조건:
+    - [x] 특수문자 입력(`%`, `_`, `,`, `)`)에서도 필터 조작 불가
+    - [x] 관리자 사용자 검색 테스트 케이스 추가
 
-```diff
-// ✅ 수정
--  login: env.rateLimitMaxSignup,
-+  login: env.rateLimitMaxLogin ?? env.rateLimitMaxSignup,
-```
+- [x] **W-002 좋아요 토글 경쟁 상태** `[Critical][resolved]`
+  - Evidence: `src/app/api/posts/[postId]/like/route.ts:29`
+  - Impact: `SELECT -> DELETE/INSERT` 비원자 처리
+  - Fix Plan: DB RPC 또는 단일 SQL 트랜잭션으로 원자화
+  - 완료 조건:
+    - [x] 동시 요청에서도 liked/like_count 일관성 보장
+    - [x] race condition 회귀 테스트 추가
 
-> 별도 `RATE_LIMIT_MAX_LOGIN` 환경변수 추가도 필요합니다.
+- [x] **W-003 로그인 레이트리밋 매핑 오류** `[Critical][resolved]`
+  - Evidence: `src/lib/api/rate-limit.ts:12`
+  - Impact: login이 signup 한도를 재사용
+  - Fix Plan: `RATE_LIMIT_MAX_LOGIN` 도입 및 매핑 분리
+  - 완료 조건:
+    - [x] login/signup 임계치 독립 동작
+    - [x] `.env.example`, README 동기화
 
----
+### High
 
-## ⚠️ High — 가까운 시일 내 개선 권장
+- [ ] **W-004 보드 목록 API 관리자 쿼리 중복** `[High][open]`
+  - Evidence: `src/app/api/boards/[slug]/posts/route.ts:46`, `src/app/api/boards/[slug]/posts/route.ts:61`
+  - Impact: 중복 쿼리로 유지보수 비용 증가
+  - Fix Plan: 공통 쿼리 빌더 + 조건부 status 필터
+  - 완료 조건:
+    - [ ] 중복 쿼리 블록 제거
+    - [ ] 관리자/일반 결과 회귀 확인
 
-### 4. 게시글 목록 API의 관리자 쿼리 중복 구성
+- [ ] **W-006 `apiFetch` 비-JSON 응답 내구성 부족** `[High][open]`
+  - Evidence: `src/lib/client-api.ts:32`
+  - Impact: JSON 파싱 실패 시 클라이언트 오류
+  - Fix Plan: `response.ok` 분기 + fallback 에러 객체
+  - 완료 조건:
+    - [ ] 비-JSON 500에서 안전한 에러 처리
+    - [ ] `apiFetch` 단위 테스트 추가
 
-[boards/[slug]/posts/route.ts](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/app/api/boards/%5Bslug%5D/posts/route.ts#L46-L75) — 일반 사용자용 쿼리를 만든 뒤, 관리자인 경우 **전체 쿼리를 처음부터 다시 구성**합니다.
+- [ ] **W-007 `next.config.ts` 하드닝 부재** `[High][open]`
+  - Evidence: `next.config.ts:3`
+  - Impact: 보안/운영 기본 설정 부족
+  - Fix Plan: 보안 헤더/기본 옵션 명시
+  - 완료 조건:
+    - [ ] 핵심 헤더 적용 확인
+    - [ ] 빌드/배포 회귀 없음
 
-```typescript
-// ❌ 46~55줄에서 쿼리를 만든 후, 61~74줄에서 관리자면 쿼리를 다시 생성
-let query = admin.from("posts").select(...)
-  .eq("status", "published")  // 일반
-  ...
+- [ ] **W-008 에러 분류 미흡 (`handleRouteError`)** `[High][open]`
+  - Evidence: `src/lib/api/errors.ts:21`
+  - Impact: 내부 오류도 400으로 반환
+  - Fix Plan: 비즈니스 오류만 4xx, 나머지 5xx
+  - 완료 조건:
+    - [ ] 미분류 예외 500 반환
+    - [ ] 401/403/429/500 테스트 추가
 
-if (viewer?.isAdmin) {
-  query = admin.from("posts").select(...)  // 전체 재구성 (status 필터 없음)
-  ...
-}
-```
+- [ ] **W-011 모더레이션 로그 실패 무시** `[High][open]`
+  - Evidence: `src/lib/api/moderation.ts:11`
+  - Impact: 감사 로그 누락 탐지 어려움
+  - Fix Plan: insert 에러 캡처/로깅
+  - 완료 조건:
+    - [ ] 실패 로그 기록
+    - [ ] 기존 API 성공 경로 유지
 
-```diff
-// ✅ 개선안 — 조건부 status 필터
-let query = admin.from("posts").select("*", { count: "exact" })
-  .eq("board_id", board.id)
-  .is("deleted_at", null)
-  .order("is_notice", { ascending: false })
-  .order("is_pinned", { ascending: false })
-  .order("created_at", { ascending: false })
-  .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+- [ ] **W-020 관리자 신고 목록 페이지네이션 미지원** `[High][open]`
+  - Evidence: `src/app/api/admin/reports/route.ts:24`
+  - Impact: 데이터 증가 시 응답 비대화
+  - Fix Plan: `page`, `pageSize`, `total` 도입
+  - 완료 조건:
+    - [ ] 대량 데이터에서도 조회 안정
+    - [ ] 관리자 UI 페이지 이동 가능
 
--if (viewer?.isAdmin) { /* 전체 쿼리 재구성 */ }
-+if (!viewer?.isAdmin) {
-+  query = query.eq("status", "published");
-+}
+- [ ] **W-025 IP `unknown` 폴백의 오탐/과도 차단 리스크** `[High][open]`
+  - Evidence: `src/lib/api/netlify.ts:14`
+  - Impact: IP 미식별 요청이 동일 키로 집계
+  - Fix Plan: `unknown` 처리 정책 분리 + 로그 추적
+  - 완료 조건:
+    - [ ] 오탐률 감소 확인
+    - [ ] 식별률 모니터링 가능
 
-if (queryText) {
-  query = query.textSearch("search_tsv", queryText, { ... });
-}
-```
+### Medium
 
----
+- [ ] **W-005 Supabase Admin Client 반복 생성** `[Medium][open]`
+  - Evidence: `src/lib/supabase/server.ts:16`
+  - Impact: 불필요한 객체 생성
+  - Fix Plan: 캐싱(모듈/요청 스코프)
+  - 완료 조건:
+    - [ ] 재사용 로직 적용
+    - [ ] 인증/권한 회귀 없음
 
-### 5. [getSupabaseAdminClient()](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/lib/supabase/server.ts#16-27) 매 호출마다 새 인스턴스 생성
+- [ ] **W-009 홈 피드 보드 슬러그 하드코딩** `[Medium][open]`
+  - Evidence: `src/app/page.tsx:43`
+  - Impact: 운영 유연성 제한
+  - Fix Plan: 기본 보드 설정값 또는 집계 API 도입
+  - 완료 조건:
+    - [ ] 하드코딩 제거
+    - [ ] 빈 보드/다중 보드 정상 처리
 
-[server.ts](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/lib/supabase/server.ts#L16-L26) — 서버 클라이언트는 매번 `createClient()`를 호출합니다. 한 요청 내에서 여러 번 호출되면 불필요한 객체 생성이 반복됩니다.
+- [ ] **W-010 TopNav 보드 링크 하드코딩** `[Medium][open]`
+  - Evidence: `src/components/top-nav.tsx:37`
+  - Impact: 보드 변경 시 수동 반영 필요
+  - Fix Plan: `/api/boards` 기반 동적 네비게이션
+  - 완료 조건:
+    - [ ] 보드 생성/삭제 시 자동 반영
 
-```typescript
-// ❌ 현재: 매번 새 인스턴스
-export function getSupabaseAdminClient() {
-  const { url } = getPublicEnv();
-  const { serviceRoleKey } = getServerEnv();
-  return createClient(url, serviceRoleKey, { ... });
-}
-```
+- [ ] **W-012 소프트 삭제 시간 생성 기준 불일치** `[Medium][open]`
+  - Evidence: `src/app/api/posts/[postId]/route.ts:172`, `src/app/api/comments/[commentId]/route.ts:75`
+  - Impact: API 서버 시간과 DB 시간 기준 혼재
+  - Fix Plan: DB 기준 시간(`now()`/trigger)으로 일관화
+  - 완료 조건:
+    - [ ] soft delete 타임스탬프 일관화
+    - [ ] 삭제/복구 회귀 통과
 
-> [!TIP]
-> 서버 Route Handler 내부에서 같은 요청 처리 중 3-5회 반복 호출됩니다. 요청 범위 싱글턴 또는 모듈 스코프 캐싱을 고려하세요.
+- [ ] **W-013 프로필 생성 로직 중복 (API + DB Trigger)** `[Medium][partial]`
+  - Evidence: `src/lib/api/auth.ts:21`, `supabase/migrations/202602170001_init_freeboard.sql:285`
+  - Impact: 생성 책임 중복
+  - Fix Plan: 단일 책임 경로 확정
+  - 완료 조건:
+    - [ ] 프로필 생성 책임 1곳으로 통합
+    - [ ] 중복 insert 경고 없음
 
-```typescript
-// ✅ 개선안 — 모듈 스코프 싱글턴
-let adminClient: ReturnType<typeof createClient> | null = null;
+- [ ] **W-014 `status + deleted_at` 이중 소프트 삭제 모델** `[Medium][deferred]`
+  - Evidence: `src/app/api/posts/[postId]/route.ts:171`, `src/app/api/boards/[slug]/posts/route.ts:50`
+  - Impact: 쿼리 복잡성 vs 상태 표현력 트레이드오프
+  - Fix Plan: 정책 비교 후 유지/단순화 결정
+  - 완료 조건:
+    - [ ] 삭제 모델 정책 문서화
 
-export function getSupabaseAdminClient() {
-  if (adminClient) return adminClient;
-  const { url } = getPublicEnv();
-  const { serviceRoleKey } = getServerEnv();
-  adminClient = createClient(url, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  return adminClient;
-}
-```
+- [ ] **W-015 라우트 반복 패턴 헬퍼 미분리** `[Medium][open]`
+  - Evidence: `src/app/api/posts/[postId]/comments/route.ts:17`, `src/app/api/reports/route.ts:12`
+  - Impact: 인증/레이트리밋/권한 코드 반복
+  - Fix Plan: 공통 래퍼 유틸 도입
+  - 완료 조건:
+    - [ ] 공통 코드 감소
+    - [ ] 응답 포맷 불변
 
----
+- [ ] **W-024 `board_templates` 관리 기능 미완성** `[Medium][partial]`
+  - Evidence: `src/app/api/admin/boards/clone/route.ts:29`, `src/types/schemas.ts:14`
+  - Impact: 템플릿 참조만 가능, 관리 플로우 미완결
+  - Fix Plan: 템플릿 CRUD API/화면 추가
+  - 완료 조건:
+    - [ ] 생성 -> 복제 -> 수정 흐름 완결
 
-### 6. [apiFetch](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/lib/client-api.ts#17-34) 응답 타입 안전성 부족 + `response.json()` 무조건 호출
+### Low
 
-[client-api.ts](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/lib/client-api.ts#L17-L33) — HTTP 에러(500, 네트워크 오류 등) 시 `response.json()`이 실패할 수 있습니다.
+- [ ] **W-016 테스트 커버리지 부족** `[Low][open]`
+  - Evidence: `src/lib/api/slug.test.ts:1`, `src/lib/api/netlify.test.ts:1`
+  - Impact: 핵심 경로 회귀 탐지 어려움
+  - Fix Plan: Critical/High 연계 테스트 우선 추가
+  - 완료 조건:
+    - [ ] 핵심 경로 테스트 확보
 
-```typescript
-// ❌ 현재 코드
-const response = await fetch(input, { ... });
-return response.json();  // 비-JSON 응답 시 크래시
-```
+- [ ] **W-017 AuthProvider에서 `getSession()` 의존** `[Low][open]`
+  - Evidence: `src/components/auth-provider.tsx:32`
+  - Impact: 세션/사용자 상태 불일치 가능성
+  - Fix Plan: 필요한 지점 `getUser()` 기반 보강
+  - 완료 조건:
+    - [ ] 인증 상태 전이 시 UI 일관성 유지
 
-```diff
-// ✅ 개선안 — 안전한 JSON 파싱
-const response = await fetch(input, { ... });
-+if (!response.ok) {
-+  try {
-+    return await response.json();
-+  } catch {
-+    return { ok: false, error: { message: `HTTP ${response.status}` } };
-+  }
-+}
-return response.json();
-```
+- [ ] **W-018 글로벌 CSS 품질 점검 미체계화** `[Low][deferred]`
+  - Evidence: `src/app/globals.css:1`
+  - Impact: 장기 유지보수 리스크
+  - Fix Plan: 스타일 체크리스트 문서화
+  - 완료 조건:
+    - [ ] CSS 규칙 문서 완료
 
----
+- [ ] **W-019 `seed.sql` 실질 시드 부재** `[Low][deferred]`
+  - Evidence: `supabase/seed.sql:1`
+  - Impact: 로컬 재현 수작업 증가
+  - Fix Plan: 최소 시드 옵션화
+  - 완료 조건:
+    - [ ] `db reset` 후 기본 시나리오 실행 가능
 
-### 7. [next.config.ts](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/next.config.ts)가 비어 있음
+- [ ] **W-021 ESLint 커스텀 정책 부재** `[Low][deferred]`
+  - Evidence: `eslint.config.mjs:5`
+  - Impact: 팀 정책 강제 부족
+  - Fix Plan: 운영 룰셋 정의
+  - 완료 조건:
+    - [ ] CI 룰 위반 검출
 
-[next.config.ts](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/next.config.ts) — 보안/성능 관련 설정이 전혀 없습니다.
+- [ ] **W-022 Vitest 커버리지 설정 부재** `[Low][open]`
+  - Evidence: `vitest.config.ts:14`
+  - Impact: 커버리지 관리 불가
+  - Fix Plan: coverage 설정 및 threshold 도입
+  - 완료 조건:
+    - [ ] 커버리지 리포트 생성
+    - [ ] 최소 임계치 적용
 
-```typescript
-// ✅ 추가 권장 설정
-const nextConfig: NextConfig = {
-  poweredByHeader: false,            // X-Powered-By 헤더 제거
-  reactStrictMode: true,             // React strict mode
-  serverExternalPackages: [],
-  images: { domains: [] },
-  headers: async () => [             // 보안 헤더
-    { source: '/(.*)', headers: [
-      { key: 'X-Frame-Options', value: 'DENY' },
-      { key: 'X-Content-Type-Options', value: 'nosniff' },
-    ]},
-  ],
-};
-```
-
----
-
-### 8. [handleRouteError](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/lib/api/errors.ts#3-26) — 모든 알 수 없는 Error는 400으로 응답
-
-[errors.ts](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/lib/api/errors.ts#L21) — 매치되지 않는 [Error](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/lib/api/errors.ts#3-26)를 400(Bad Request)으로 처리합니다.
-
-```typescript
-// ❌ Supabase 내부 오류도 400으로 노출됨
-return fail(400, error.message);
-```
-
-> [!WARNING]
-> DB 에러, 내부 로직 에러가 그대로 클라이언트에 노출됩니다. 에러 메시지에 DB 스키마 정보가 포함될 수 있습니다.
-
-```diff
-// ✅ 알려진 에러만 400, 나머지는 500
-+const knownErrors = ['Invalid JSON body', 'Invalid slug base'];
- if (error instanceof Error) {
--  return fail(400, error.message);
-+  if (knownErrors.includes(error.message)) {
-+    return fail(400, error.message);
-+  }
-+  console.error('[RouteError]', error);
-+  return fail(500, 'Internal server error');
- }
-```
-
----
-
-## 💡 Medium — 코드 품질 개선
-
-### 9. 홈 페이지가 `freeboard` 슬러그를 하드코딩
-
-[page.tsx](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/app/page.tsx#L43) — 홈 페이지에서 최신 글을 `freeboard` 보드 고정으로 가져옵니다.
-
-```typescript
-const feedRes = await fetch("/api/boards/freeboard/posts?page=1", ...);
-```
-
-> 동적으로 모든 보드의 최신 글을 가져오거나, 환경변수로 기본 보드를 설정 가능하게 해야 합니다.
-
----
-
-### 10. TopNav에 보드 링크 하드코딩
-
-[top-nav.tsx](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/components/top-nav.tsx#L37-L42) — 네비게이션에 `freeboard`, `ai-freeboard` 경로가 하드코딩되어 있습니다.
-
-```tsx
-<Link href="/b/freeboard">테크 뉴스</Link>
-<Link href="/b/ai-freeboard">AI 게시판</Link>
-```
-
-> 보드 목록을 API에서 가져와 동적 렌더링하면 관리자가 보드를 추가/삭제해도 자동 반영됩니다.
-
----
-
-### 11. [createModerationLog](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/lib/api/moderation.ts#3-19)의 에러가 무시됨
-
-[moderation.ts](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/lib/api/moderation.ts#L11) — insert 결과의 error를 체크하지 않습니다.
-
-```typescript
-// ❌ 현재: 에러 무시
-await admin.from("moderation_actions").insert({ ... });
-```
-
-```diff
-// ✅ 에러 핸들링 추가
--await admin.from("moderation_actions").insert({ ... });
-+const { error } = await admin.from("moderation_actions").insert({ ... });
-+if (error) {
-+  console.error('[ModerationLog] Failed:', error);
-+}
-```
+- [ ] **W-023 닉네임 정책의 한글 미지원** `[Low][deferred]`
+  - Evidence: `src/types/schemas.ts:65`
+  - Impact: 한국어 UX 제약 가능성
+  - Fix Plan: 허용 문자 정책 합의 후 regex 반영
+  - 완료 조건:
+    - [ ] 닉네임 정책 문서 확정
 
 ---
 
-### 12. `updated_at` 타임스탬프가 `new Date().toISOString()` 사용
+## 5) Wave 실행 체크리스트
 
-[posts/[postId]/route.ts](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/app/api/posts/%5BpostId%5D/route.ts#L170-L174) — `deleted_at`에 JS Date을 사용합니다.
+- [x] **Wave 1 완료 (보안/정확성)**
+  - [x] W-001
+  - [x] W-002
+  - [x] W-003
 
-> DB 트리거(`set_updated_at`)가 있는 `updated_at`과 달리, `deleted_at`은 서버 사이드 타임스탬프를 사용합니다. **서버와 DB 시간대 불일치** 가능성이 있습니다.
+- [ ] **Wave 2 완료 (안정성/에러처리)**
+  - [ ] W-006
+  - [ ] W-008
+  - [ ] W-011
+  - [ ] W-020
+  - [ ] W-025
 
-```diff
-// ✅ DB 함수 사용 개선안
--deleted_at: new Date().toISOString(),
-+deleted_at: 'now()',  // 또는 DB 트리거로 처리
-```
+- [ ] **Wave 3 완료 (구조 개선)**
+  - [ ] W-004
+  - [ ] W-005
+  - [ ] W-009
+  - [ ] W-010
+  - [ ] W-012
+  - [ ] W-013
+  - [ ] W-015
+  - [ ] W-024
 
----
-
-### 13. [ensureProfile](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/lib/api/auth.ts#21-51)과 `handle_new_user_profile` 트리거 중복
-
-- [auth.ts](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/lib/api/auth.ts#L21-L50)의 [ensureProfile()](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/lib/api/auth.ts#21-51): 서버에서 프로필을 생성
-- DB 트리거 `handle_new_user_profile`: `auth.users` INSERT 시 자동 생성
-
-> 두 곳에서 프로필 생성 로직이 중복됩니다. 닉네임 생성 로직도 다릅니다.
-
----
-
-### 14. 게시글 삭제 시 `deleted_at` + `status='deleted'` 이중 관리
-
-소프트 삭제 시 `deleted_at` 타임스탬프와 `status` 컬럼을 동시에 변경합니다. 조회 시에도 두 필드를 모두 확인합니다.
-
-```typescript
-// 조회: .is("deleted_at", null) + .eq("status", "published")
-// 삭제: status = "deleted" + deleted_at = now()
-```
-
-> 하나의 필드로 통일하면 쿼리가 단순해지고 실수 가능성이 줄어듭니다.
-
----
-
-### 15. 공통 반복 패턴이 헬퍼로 분리되지 않음
-
-여러 route에서 반복되는 패턴:
-- 파라미터 파싱 (`paramsSchema.parse(await context.params)`)
-- 인증 + 정지 확인 ([requireAuth](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/lib/api/auth.ts#79-87) + [assertNotSuspended](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/lib/api/auth.ts#88-98))
-- 레이트리밋 체크 (user + ip 2회 호출)
-- 권한 검사 (`author_id !== ctx.userId && !ctx.isAdmin`)
-
-```typescript
-// ✅ 미들웨어 패턴으로 추출 가능
-async function withAuth<T>(
-  request: Request,
-  handler: (ctx: AuthContext) => Promise<T>
-) {
-  try {
-    const ctx = await requireAuth(request.headers);
-    return await handler(ctx);
-  } catch (error) {
-    return handleRouteError(error);
-  }
-}
-```
+- [ ] **Wave 4 완료 (테스트/운영 품질)**
+  - [ ] W-007
+  - [ ] W-014
+  - [ ] W-016
+  - [ ] W-017
+  - [ ] W-018
+  - [ ] W-019
+  - [ ] W-021
+  - [ ] W-022
+  - [ ] W-023
 
 ---
 
-## 📝 Low — 나중에 개선해도 좋은 항목
+## 6) 검증 체크리스트 (문서)
 
-| # | 항목 | 파일 | 설명 |
-|---|------|------|------|
-| 16 | 테스트 커버리지 부족 | [slug.test.ts](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/lib/api/slug.test.ts), [netlify.test.ts](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/lib/api/netlify.test.ts) | API route, auth, rate-limit 등 핵심 로직 테스트 없음 |
-| 17 | [AuthProvider](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/components/auth-provider.tsx#19-82)에서 `getSession()` 사용 | [auth-provider.tsx](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/components/auth-provider.tsx) | Supabase에서 `getSession()`보다 `getUser()` 권장 |
-| 18 | [globals.css](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/app/globals.css) 리뷰 미포함 | [globals.css](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/app/globals.css) | CSS 변수/유틸 클래스 일관성 확인 필요 |
-| 19 | [seed.sql](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/supabase/seed.sql)이 거의 비어있음 | [supabase/seed.sql](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/supabase/seed.sql) | 개발/테스트용 시드 데이터 부족 |
-| 20 | 관리자 API에 페이지네이션 미구현 | [admin/reports/route.ts](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/app/api/admin/reports/route.ts) | 신고 목록 등이 전체 반환될 가능성 |
-| 21 | [eslint.config.mjs](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/eslint.config.mjs) 커스텀 룰 없음 | [eslint.config.mjs](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/eslint.config.mjs) | `no-console` 등 프로덕션 규칙 미설정 |
-| 22 | [vitest.config.ts](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/vitest.config.ts) 커버리지 미설정 | [vitest.config.ts](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/vitest.config.ts) | `coverage` 옵션 추가 권장 |
-| 23 | `profileUpdateSchema`에 한글 닉네임 불허 | [schemas.ts](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/types/schemas.ts) | `regex(/^[a-zA-Z0-9_]+$/)` — 한국어 서비스에 적합한지 검토 |
-| 24 | `board_templates` 테이블 미활용 | 마이그레이션 | 클론 API에서 `template_id` 참조만 있고 생성 API 없음 |
-| 25 | IP `"unknown"` 폴백이 레이트리밋 우회 가능 | [netlify.ts](file:///Users/hwanchoi/projects_202602/multi_freeboard_codex/src/lib/api/netlify.ts) | 같은 IP로 집계되어 DoS 가능 |
+- [x] `docs/walkthrough.md`에 로컬 절대 경로 스킴 문자열 0건
+- [x] 이슈 항목 수가 `25`개인지 확인
+- [x] 이슈 ID가 `W-001~W-025` 모두 포함되는지 확인
+- [x] 모든 이슈에 `Evidence`가 있는지 확인
+- [x] 모든 이슈에 완료 조건(체크박스)이 있는지 확인
 
----
+## 7) 검증 체크리스트 (코드 변경 시)
 
-## 🏗️ 우선순위 개선 로드맵
-
-```mermaid
-graph LR
-  C1["🚨 Critical<br/>SQL Injection<br/>Rate Limit Bug<br/>Like Race Condition"]
-  C2["⚠️ High<br/>Error 노출<br/>쿼리 중복<br/>next.config<br/>apiFetch 안전성"]
-  C3["💡 Medium<br/>하드코딩 제거<br/>헬퍼 추출<br/>중복 로직"]
-  C4["📝 Low<br/>테스트<br/>시드 데이터<br/>ESLint/Vitest"]
-
-  C1 --> C2 --> C3 --> C4
-```
+- [x] `npm run lint`
+- [x] `npm run test`
+- [x] `npm run build`
 
 ---
 
-## ✅ 잘 되어 있는 점
+## 8) 보류/결정 체크리스트
 
-- **프로젝트 구조**: `lib/api`, `lib/supabase`, `types`, `components` 등 레이어 분리가 깔끔
-- **Zod 스키마 검증**: 모든 입력을 체계적으로 검증하고 있음
-- **RLS 정책**: 10개 테이블 모두 RLS ON, 세밀한 정책 설계
-- **DB 트리거 활용**: 카운터 갱신, 검색 벡터, 대댓글 depth 제한이 모두 DB 레벨
-- **소프트 삭제 일관성**: 게시글, 댓글, 보드 모두 소프트 삭제 정책 적용
-- **레이트리밋 아키텍처**: IP + 사용자 이중 체크, DB 기반 슬라이딩 윈도우
-- **관리자 부트스트랩**: 1회성 승격 방식이 깔끔하고 안전
+### 보류 항목 관리
+
+- [ ] W-014 정책 결정
+- [ ] W-018 스타일 규칙 정리
+- [ ] W-019 시드 범위 확정
+- [ ] W-021 ESLint 룰 강도 확정
+- [ ] W-023 닉네임 정책 확정
+
+### 추후 결정 필요사항
+
+- [ ] 소프트 삭제 모델: 단일 필드 vs 이중 모델
+- [ ] 닉네임 문자 정책: 한글/공백/특수문자 허용 범위
+- [ ] 로컬 시드 데이터 기본 제공 범위
+
+---
+
+## 9) 가정 및 기본값
+
+- 이번 문서는 코드 수정이 아니라 **작업 추적용 체크리스트**를 목적으로 함
+- 문서는 `docs/walkthrough.md` 단일 파일로 유지
+- 기존 25개 이슈는 삭제하지 않고 번호 고정 유지
+- 우선순위 기준: `보안/데이터 무결성 > 사용자 영향 > 유지보수성`
+
+---
+
+## 10) 자체 테스트 로그
+
+### 2026-02-17 Wave 1 완료 검증
+
+- [x] 공통 회귀 검증
+  - Command: `npm run lint`
+  - Result: `pass`
+  - Command: `npm run test`
+  - Result: `4 files, 14 tests passed`
+  - Command: `npm run build`
+  - Result: `pass` (Next.js build successful)
+
+- [x] W-001 검증 (관리자 검색 필터 안전화)
+  - Added tests: `src/lib/api/admin-search.test.ts`
+  - Verified:
+    - 필터 제어문자 제거
+    - `%`, `_` 와일드카드 이스케이프
+    - 빈 입력 처리
+
+- [x] W-002 검증 (좋아요 토글 원자 처리)
+  - Migration applied: `supabase/migrations/202602170004_add_toggle_post_like_rpc.sql`
+  - Command (sequential sanity):
+    - `toggle_post_like` 2회 호출
+    - Result: `true|false|0`
+  - Command (parallel race):
+    - 동일 post/user에 대해 병렬 40회 호출 (`xargs -P 8`)
+    - Result: `false|0` (최종 상태/카운트 일관)
+
+- [x] W-003 검증 (login rate-limit 분리)
+  - Added tests: `src/lib/env.test.ts`
+  - Verified:
+    - `RATE_LIMIT_MAX_LOGIN` 명시 시 해당 값 사용
+    - 미설정 시 `RATE_LIMIT_MAX_SIGNUP` fallback
+  - Command: `npm run env:local:sync && rg '^RATE_LIMIT_MAX_LOGIN=' .env.local`
+  - Result: `RATE_LIMIT_MAX_LOGIN=10` 확인
