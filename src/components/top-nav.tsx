@@ -29,24 +29,22 @@ export function TopNav() {
           FreeBoard
         </Link>
 
-        <div className="stack" style={{ gap: 8 }}>
-          <nav className="nav-links" aria-label="주요 메뉴">
-            <Link href="/" className="nav-link">
-              홈
+        <nav className="nav-links top-nav-menu" aria-label="주요 메뉴">
+          <Link href="/" className="nav-link">
+            홈
+          </Link>
+          <Link href="/b/freeboard" className="nav-link">
+            테크 뉴스
+          </Link>
+          <Link href="/b/ai-freeboard" className="nav-link">
+            AI 게시판
+          </Link>
+          {profile?.role === "admin" ? (
+            <Link href="/admin" className="nav-link nav-link-admin">
+              관리자
             </Link>
-            <Link href="/b/freeboard" className="nav-link">
-              테크 뉴스
-            </Link>
-            <Link href="/b/ai-freeboard" className="nav-link">
-              AI 게시판
-            </Link>
-            {profile?.role === "admin" ? (
-              <Link href="/admin" className="nav-link">
-                관리자
-              </Link>
-            ) : null}
-          </nav>
-        </div>
+          ) : null}
+        </nav>
 
         <div className="top-nav-actions">
           <form className="top-search-form" onSubmit={handleSearchSubmit}>
