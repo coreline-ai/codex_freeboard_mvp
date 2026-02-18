@@ -161,7 +161,7 @@ export default function AdminBoardsPage() {
             게시글 승인 필요
           </label>
 
-          <button className="primary" type="submit">
+          <button className="admin" type="submit">
             생성
           </button>
         </form>
@@ -202,7 +202,7 @@ export default function AdminBoardsPage() {
             <textarea value={cloneForm.description} onChange={(e) => setCloneForm({ ...cloneForm, description: e.target.value })} />
           </label>
 
-          <button className="primary" type="submit">
+          <button className="admin" type="submit">
             복제
           </button>
         </form>

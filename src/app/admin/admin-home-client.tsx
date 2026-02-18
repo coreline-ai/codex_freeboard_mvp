@@ -27,7 +27,7 @@ export default function AdminHomePage() {
         <Link className="card stack" href="/admin/boards">
           <h2 className="panel-title">게시판 관리</h2>
           <p className="muted">신규 생성, 템플릿 복제, 게시 설정 점검</p>
-          <span className="button primary" style={{ width: "fit-content" }}>
+          <span className="button admin card-link-action">
             이동
           </span>
         </Link>
@@ -35,7 +35,7 @@ export default function AdminHomePage() {
         <Link className="card stack" href="/admin/users">
           <h2 className="panel-title">유저 관리</h2>
           <p className="muted">권한 변경, 정지/복구, 활동 이력 확인</p>
-          <span className="button" style={{ width: "fit-content" }}>
+          <span className="button admin card-link-action">
             이동
           </span>
         </Link>
@@ -43,7 +43,7 @@ export default function AdminHomePage() {
         <Link className="card stack" href="/admin/reports">
           <h2 className="panel-title">신고 관리</h2>
           <p className="muted">신고 건 검토, 숨김/삭제, 해결/반려 처리</p>
-          <span className="button" style={{ width: "fit-content" }}>
+          <span className="button admin card-link-action">
             이동
           </span>
         </Link>

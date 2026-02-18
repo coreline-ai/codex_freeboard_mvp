@@ -187,7 +187,9 @@ export default function AdminUsersPage() {
             />
             정지 사용자만
           </label>
-          <button type="submit">필터 적용</button>
+          <button className="admin" type="submit">
+            필터 적용
+          </button>
         </form>
       </section>
 
@@ -220,7 +222,7 @@ export default function AdminUsersPage() {
                     <div className="muted">{user.email}</div>
                   </td>
                   <td>
-                    <span className={`badge ${user.role === "admin" ? "pinned" : ""}`}>{user.role}</span>
+                    <span className={`badge ${user.role === "admin" ? "admin" : ""}`}>{user.role}</span>
                   </td>
                   <td>
                     {user.suspended_until ? (
@@ -233,18 +235,19 @@ export default function AdminUsersPage() {
                   <td>
                     <div className="row">
                       <button
+                        className="admin"
                         type="button"
                         onClick={() => void setUserRole(user.id, user.role === "admin" ? "user" : "admin")}
                       >
                         role 변경
                       </button>
-                      <button type="button" onClick={() => void suspend(user.id)}>
+                      <button className="admin" type="button" onClick={() => void suspend(user.id)}>
                         정지
                       </button>
-                      <button type="button" onClick={() => void restore(user.id)}>
+                      <button className="admin" type="button" onClick={() => void restore(user.id)}>
                         복구
                       </button>
-                      <button type="button" onClick={() => void loadActivity(user.id)}>
+                      <button className="admin" type="button" onClick={() => void loadActivity(user.id)}>
                         활동보기
                       </button>
                     </div>
@@ -258,9 +261,9 @@ export default function AdminUsersPage() {
         <div className="list mobile-only">
           {(data?.users ?? []).map((user) => (
             <article key={`mobile-${user.id}`} className="list-item">
-              <div className="row" style={{ justifyContent: "space-between" }}>
+              <div className="row row-between">
                 <strong>{user.nickname}</strong>
-                <span className={`badge ${user.role === "admin" ? "pinned" : ""}`}>{user.role}</span>
+                <span className={`badge ${user.role === "admin" ? "admin" : ""}`}>{user.role}</span>
               </div>
               <div className="muted">{user.email}</div>
               <div className="muted">가입일: {formatDate(user.created_at)}</div>
@@ -272,16 +275,16 @@ export default function AdminUsersPage() {
                 )}
               </div>
               <div className="row admin-user-actions">
-                <button type="button" onClick={() => void setUserRole(user.id, user.role === "admin" ? "user" : "admin")}>
+                <button className="admin" type="button" onClick={() => void setUserRole(user.id, user.role === "admin" ? "user" : "admin")}>
                   role 변경
                 </button>
-                <button type="button" onClick={() => void suspend(user.id)}>
+                <button className="admin" type="button" onClick={() => void suspend(user.id)}>
                   정지
                 </button>
-                <button type="button" onClick={() => void restore(user.id)}>
+                <button className="admin" type="button" onClick={() => void restore(user.id)}>
                   복구
                 </button>
-                <button type="button" onClick={() => void loadActivity(user.id)}>
+                <button className="admin" type="button" onClick={() => void loadActivity(user.id)}>
                   활동보기
                 </button>
               </div>

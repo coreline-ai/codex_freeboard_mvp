@@ -99,21 +99,21 @@ export default function AdminReportsPage() {
         <div className="row">
           <button
             type="button"
-            className={`button ${statusFilter === "open" ? "active" : ""}`}
+            className={`button admin ${statusFilter === "open" ? "active" : ""}`}
             onClick={() => void applyStatus("open")}
           >
             open
           </button>
           <button
             type="button"
-            className={`button ${statusFilter === "resolved" ? "active" : ""}`}
+            className={`button admin ${statusFilter === "resolved" ? "active" : ""}`}
             onClick={() => void applyStatus("resolved")}
           >
             resolved
           </button>
           <button
             type="button"
-            className={`button ${statusFilter === "rejected" ? "active" : ""}`}
+            className={`button admin ${statusFilter === "rejected" ? "active" : ""}`}
             onClick={() => void applyStatus("rejected")}
           >
             rejected
@@ -134,7 +134,7 @@ export default function AdminReportsPage() {
         <div className="list">
           {reports.map((report) => (
             <article key={report.id} className="list-item">
-              <div className="row" style={{ justifyContent: "space-between" }}>
+              <div className="row row-between">
                 <div className="row">
                   <span className="badge">{report.target_type}</span>
                   <strong>{report.target_id}</strong>
@@ -145,16 +145,16 @@ export default function AdminReportsPage() {
               <div>{report.reason}</div>
 
               <div className="row">
-                <button type="button" onClick={() => void moderateTarget(report, "hidden")}>
+                <button className="admin" type="button" onClick={() => void moderateTarget(report, "hidden")}>
                   숨김
                 </button>
                 <button className="danger" type="button" onClick={() => void moderateTarget(report, "deleted")}>
                   삭제
                 </button>
-                <button type="button" onClick={() => void resolveReport(report.id, "resolved")}>
+                <button className="admin" type="button" onClick={() => void resolveReport(report.id, "resolved")}>
                   해결 처리
                 </button>
-                <button type="button" onClick={() => void resolveReport(report.id, "rejected")}>
+                <button className="admin" type="button" onClick={() => void resolveReport(report.id, "rejected")}>
                   반려
                 </button>
               </div>
