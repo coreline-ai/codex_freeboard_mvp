@@ -175,6 +175,7 @@ Next.js + Supabase 기반 자유 게시판 MVP입니다.
 - `supabase/migrations/202602170003_fix_search_prefix_matching.sql`
 - `supabase/migrations/202602170004_toggle_post_like_rpc.sql`
 - `supabase/migrations/202602170005_admin_profiles_safe_search.sql`
+- `supabase/migrations/202602170006_harden_rpc_execute_permissions.sql`
 
 핵심 테이블:
 

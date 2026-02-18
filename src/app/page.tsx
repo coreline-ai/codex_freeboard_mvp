@@ -4,13 +4,18 @@ import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Board } from "@/types/domain";
 import styles from "./page.module.css";
 
+export const dynamic = "force-dynamic";
+
 interface LandingBoard {
   id: string;
   slug: string;
   name: string;
   description: string;
   postCount: number;
-  tone: string;
+  isPublic: boolean;
+  allowPost: boolean;
+  allowComment: boolean;
+  requirePostApproval: boolean;
 }
 
 interface LandingActivity {
@@ -20,8 +25,6 @@ interface LandingActivity {
   authorNickname: string;
   boardSlug: string;
 }
-
-const BOARD_TONES = ["toneBlue", "toneViolet", "toneEmerald", "toneRose", "toneCyan", "toneAmber"];
 
 export const metadata: Metadata = {
   title: "Home",
@@ -71,6 +74,93 @@ function boardInitial(name: string): string {
   return normalized.slice(0, 2).toUpperCase();
 }
 
+type RailIconName = "home" | "search" | "discussion" | "ai" | "login" | "admin" | "brand" | "notice";
+
+function RailIcon({ name }: { name: RailIconName }) {
+  const common = {
+    width: 18,
+    height: 18,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.8,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+  };
+
+  if (name === "home") {
+    return (
+      <svg {...common}>
+        <path d="M3 11.5L12 4l9 7.5" />
+        <path d="M5.5 10.5V20h13V10.5" />
+      </svg>
+    );
+  }
+
+  if (name === "search") {
+    return (
+      <svg {...common}>
+        <circle cx="11" cy="11" r="6.5" />
+        <path d="M16 16l4 4" />
+      </svg>
+    );
+  }
+
+  if (name === "discussion") {
+    return (
+      <svg {...common}>
+        <path d="M4 6.5h16v9H9l-5 4v-13z" />
+      </svg>
+    );
+  }
+
+  if (name === "ai") {
+    return (
+      <svg {...common}>
+        <rect x="5" y="5" width="14" height="14" rx="3" />
+        <path d="M9 12h6" />
+        <path d="M12 9v6" />
+      </svg>
+    );
+  }
+
+  if (name === "login") {
+    return (
+      <svg {...common}>
+        <path d="M14 4h5v16h-5" />
+        <path d="M10 12h9" />
+        <path d="M7 9l-3 3 3 3" />
+      </svg>
+    );
+  }
+
+  if (name === "admin") {
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="8" r="3" />
+        <path d="M5 20c1.4-3 4-4.5 7-4.5s5.6 1.5 7 4.5" />
+      </svg>
+    );
+  }
+
+  if (name === "brand") {
+    return (
+      <svg {...common}>
+        <path d="M12 3l2.1 4.4L19 9l-3.5 3.4.8 4.8-4.3-2.3-4.3 2.3.8-4.8L5 9l4.9-1.6L12 3z" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg {...common}>
+      <path d="M12 4a8 8 0 108 8" />
+      <path d="M12 2v4" />
+      <path d="M22 12h-4" />
+    </svg>
+  );
+}
+
 export default async function HomePage() {
   const admin = getSupabaseAdminClient();
 
@@ -83,7 +173,6 @@ export default async function HomePage() {
     const { data: boardRows, error: boardRowsError } = await admin
       .from("boards")
       .select("id,slug,name,description,is_public,allow_post,allow_comment,require_post_approval,created_by,created_at,updated_at,deleted_at")
-      .eq("is_public", true)
       .is("deleted_at", null)
       .order("updated_at", { ascending: false })
       .limit(100);
@@ -91,9 +180,9 @@ export default async function HomePage() {
     if (boardRowsError) {
       boardError = true;
     } else {
-      const publicBoards = (boardRows ?? []) as Board[];
-      const visibleBoards = publicBoards.slice(0, 6);
-      const boardById = new Map(publicBoards.map((board) => [board.id, board]));
+      const allBoards = (boardRows ?? []) as Board[];
+      const visibleBoards = allBoards;
+      const boardById = new Map(allBoards.map((board) => [board.id, board]));
 
       const countRows = await Promise.all(
         visibleBoards.map(async (board) => {
@@ -109,16 +198,19 @@ export default async function HomePage() {
       );
 
       const postCountByBoard = new Map(countRows);
-      boards = visibleBoards.map((board, index) => ({
+      boards = visibleBoards.map((board) => ({
         id: board.id,
         slug: board.slug,
         name: board.name,
         description: board.description?.trim() || "새로운 기술 토론을 시작해 보세요.",
         postCount: postCountByBoard.get(board.id) ?? 0,
-        tone: BOARD_TONES[index % BOARD_TONES.length],
+        isPublic: board.is_public,
+        allowPost: board.allow_post,
+        allowComment: board.allow_comment,
+        requirePostApproval: board.require_post_approval,
       }));
 
-      const boardIds = publicBoards.map((board) => board.id);
+      const boardIds = allBoards.filter((board) => board.is_public).map((board) => board.id);
       if (boardIds.length > 0) {
         const { data: activityRows, error: activityRowsError } = await admin
           .from("posts")
@@ -167,7 +259,7 @@ export default async function HomePage() {
     <div className={styles.landingShell}>
       <nav className={styles.landingRail} aria-label="Primary">
         <Link href="/" className={styles.landingRailBrand} aria-label="FreeBoard Home">
-          FB
+          <RailIcon name="brand" />
         </Link>
 
         <div className={styles.landingRailLinks}>
@@ -177,27 +269,27 @@ export default async function HomePage() {
             aria-label="Home"
             aria-current="page"
           >
-            HM
+            <RailIcon name="home" />
           </Link>
           <Link href="/search?page=1" className={styles.landingRailLink} aria-label="Search">
-            SR
+            <RailIcon name="search" />
           </Link>
           <Link href="/b/freeboard" className={styles.landingRailLink} aria-label="Discussions">
-            DS
+            <RailIcon name="discussion" />
           </Link>
           <Link href="/b/ai-freeboard" className={styles.landingRailLink} aria-label="Trending AI Board">
-            AI
+            <RailIcon name="ai" />
           </Link>
           <Link href="/login" className={styles.landingRailLink} aria-label="Login">
-            LG
+            <RailIcon name="login" />
           </Link>
           <Link href="/admin" className={styles.landingRailLink} aria-label="Settings">
-            AD
+            <RailIcon name="admin" />
           </Link>
         </div>
 
         <div className={styles.landingRailProfile} aria-label="Current user profile shortcut">
-          ME
+          <span>ME</span>
         </div>
       </nav>
 
@@ -222,7 +314,7 @@ export default async function HomePage() {
               />
             </form>
             <button type="button" className={styles.landingNoticeButton} aria-label="Notifications">
-              NT
+              <RailIcon name="notice" />
             </button>
           </div>
         </header>
@@ -260,10 +352,7 @@ export default async function HomePage() {
                 <h3 id="active-boards-heading" className={styles.landingPanelTitle}>
                   Active Boards
                 </h3>
-                <div className={styles.landingViewButtons} aria-hidden="true">
-                  <span>GD</span>
-                  <span className={styles.landingViewButtonActive}>LS</span>
-                </div>
+                <span className={styles.landingBoardCount}>총 {boards.length}개</span>
               </header>
 
               {boardError ? <p className={styles.landingError}>보드 정보를 불러오지 못했습니다.</p> : null}
@@ -275,10 +364,10 @@ export default async function HomePage() {
                 </article>
               ) : (
                 <div className={styles.landingBoardGrid}>
-                  {boards.slice(0, 5).map((board) => (
+                  {boards.map((board) => (
                     <Link key={board.id} href={`/b/${board.slug}`} className={styles.landingBoardCard}>
                       <div className={styles.landingBoardHead}>
-                        <span className={`${styles.landingBoardIcon} ${styles[board.tone]}`}>{boardInitial(board.name)}</span>
+                        <span className={styles.landingBoardIcon}>{boardInitial(board.name)}</span>
                         <span className={styles.landingBoardSlug}>/{board.slug}</span>
                       </div>
 
@@ -288,28 +377,20 @@ export default async function HomePage() {
                       </div>
 
                       <div className={styles.landingBoardStats}>
-                        <span>Posts {board.postCount.toLocaleString()}</span>
+                        <span>posts {board.postCount.toLocaleString()}</span>
+                        <div className={styles.landingBoardBadges}>
+                          <span className={`${styles.landingBadge} ${board.isPublic ? styles.landingBadgePublic : styles.landingBadgePrivate}`}>
+                            {board.isPublic ? "public" : "private"}
+                          </span>
+                          {!board.allowPost ? <span className={styles.landingBadge}>no-post</span> : null}
+                          {!board.allowComment ? <span className={styles.landingBadge}>no-comment</span> : null}
+                          {board.requirePostApproval ? <span className={styles.landingBadge}>approval-on</span> : null}
+                        </div>
                       </div>
                     </Link>
                   ))}
                 </div>
               )}
-
-              {boards.length > 5 ? (
-                <Link href={`/b/${boards[5].slug}`} className={`${styles.landingBoardCard} ${styles.landingBoardWide}`}>
-                  <div className={styles.landingBoardHead}>
-                    <span className={`${styles.landingBoardIcon} ${styles[boards[5].tone]}`}>{boardInitial(boards[5].name)}</span>
-                    <span className={styles.landingBoardSlug}>/{boards[5].slug}</span>
-                  </div>
-                  <div className={styles.landingBoardBody}>
-                    <h4 className={styles.landingBoardTitle}>{boards[5].name}</h4>
-                    <p className={styles.landingBoardDescription}>{boards[5].description}</p>
-                  </div>
-                  <div className={styles.landingBoardStats}>
-                    <span>Posts {boards[5].postCount.toLocaleString()}</span>
-                  </div>
-                </Link>
-              ) : null}
             </section>
 
             <aside className={styles.landingActivitySection} aria-labelledby="latest-activity-heading">

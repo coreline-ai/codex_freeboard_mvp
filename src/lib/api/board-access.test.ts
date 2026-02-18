@@ -55,4 +55,24 @@ describe("assertBoardWriteAccess", () => {
       }),
     ).toThrow(AppError);
   });
+
+  it("allows post_write when allow_post is false (non-create action)", () => {
+    expect(() =>
+      assertBoardWriteAccess({
+        board: makeBoard({ allow_post: false }),
+        actor: { userId: "admin-id", isAdmin: true },
+        action: "post_write",
+      }),
+    ).not.toThrow();
+  });
+
+  it("allows comment_write when allow_comment is false (non-create action)", () => {
+    expect(() =>
+      assertBoardWriteAccess({
+        board: makeBoard({ allow_comment: false }),
+        actor: { userId: "admin-id", isAdmin: true },
+        action: "comment_write",
+      }),
+    ).not.toThrow();
+  });
 });

@@ -302,6 +302,8 @@ button,
   color: var(--text);
   cursor: pointer;
   transition: all 0.15s ease;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 button:hover,

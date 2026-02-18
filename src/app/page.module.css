@@ -32,9 +32,7 @@
   color: #ffffff;
   display: grid;
   place-items: center;
-  font-weight: 700;
-  font-size: 0.78rem;
-  letter-spacing: 0.02em;
+  border: 1px solid #0f172a;
 }
 
 .landingRailLinks {
@@ -49,8 +47,6 @@
   border: 1px solid #e5e7eb;
   background: #ffffff;
   color: #6b7280;
-  font-size: 0.68rem;
-  font-weight: 600;
   display: grid;
   place-items: center;
   transition: all 0.2s ease;
@@ -156,12 +152,12 @@
 .landingNoticeButton {
   width: 44px;
   min-height: 44px;
+  display: grid;
+  place-items: center;
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   background: #ffffff;
   color: #6b7280;
-  font-size: 0.68rem;
-  font-weight: 700;
 }
 
 .landingNoticeButton:hover {
@@ -270,6 +266,8 @@
   font-weight: 600;
   text-align: center;
   transition: all 0.2s ease;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 .landingPrimaryButton {
@@ -327,27 +325,14 @@
   letter-spacing: -0.01em;
 }
 
-.landingViewButtons {
-  display: flex;
-  gap: 6px;
-}
-
-.landingViewButtons span {
-  width: 36px;
-  min-height: 36px;
-  border-radius: 8px;
+.landingBoardCount {
   border: 1px solid #e5e7eb;
-  background: #ffffff;
-  font-size: 0.6rem;
-  font-weight: 700;
-  color: #9ca3af;
-  display: grid;
-  place-items: center;
-}
-
-.landingViewButtonActive {
-  background: #f3f4f6 !important;
-  color: #111827 !important;
+  border-radius: 999px;
+  background: #f9fafb;
+  color: #6b7280;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
 }
 
 .landingLiveChip {
@@ -403,7 +388,7 @@
 
 .landingBoardGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 14px;
 }
 
@@ -434,40 +419,12 @@
   width: 40px;
   min-height: 40px;
   border-radius: 10px;
+  background: #eff6ff;
+  color: #1d4ed8;
   display: grid;
   place-items: center;
   font-size: 0.72rem;
   font-weight: 700;
-}
-
-.toneBlue {
-  background: #eff6ff;
-  color: #1d4ed8;
-}
-
-.toneViolet {
-  background: #f5f3ff;
-  color: #6d28d9;
-}
-
-.toneEmerald {
-  background: #ecfdf5;
-  color: #047857;
-}
-
-.toneRose {
-  background: #fff1f2;
-  color: #be123c;
-}
-
-.toneCyan {
-  background: #ecfeff;
-  color: #0e7490;
-}
-
-.toneAmber {
-  background: #fffbeb;
-  color: #b45309;
 }
 
 .landingBoardSlug {
@@ -504,10 +461,41 @@
   color: #9ca3af;
   font-size: 0.72rem;
   font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.landingBoardWide {
-  margin-top: 14px;
+.landingBoardBadges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.landingBadge {
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: #ffffff;
+  color: #6b7280;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.landingBadgePublic {
+  border-color: #bce7d2;
+  background: #edf9f3;
+  color: #0e7a49;
+}
+
+.landingBadgePrivate {
+  border-color: #ffcfcf;
+  background: #fff1f1;
+  color: #a92c2c;
 }
 
 .landingTimeline {

@@ -39,4 +39,18 @@ describe("handleRouteError", () => {
     expect(logger).toHaveBeenCalled();
     logger.mockRestore();
   });
+
+  it("maps postgrest not found error to 404", async () => {
+    const response = handleRouteError({
+      code: "PGRST116",
+      message: "JSON object requested, multiple (or no) rows returned",
+      details: "Results contain 0 rows",
+      hint: null,
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(payload.ok).toBe(false);
+    expect(payload.error.message).toBe("Resource not found");
+  });
 });

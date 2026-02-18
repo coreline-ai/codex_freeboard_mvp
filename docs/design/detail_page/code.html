@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FreeBoard - Editorial Detail</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#111827", 
+                        secondary: "#4b5563",
+                        accent: "#2563eb",
+                        paper: "#ffffff",
+                        subtle: "#f3f4f6",
+                        border: "#e5e7eb"
+                    },
+                    fontFamily: {
+                        sans: ["Inter", "sans-serif"],
+                        display: ["Space Grotesk", "sans-serif"],
+                        serif: ["Merriweather", "serif"],
+                        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", "monospace"],
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+                        'card': '0 1px 3px 0 rgba(0, 0, 0, 0.02), 0 10px 40px -10px rgba(0, 0, 0, 0.05)',
+                        'float': '0 20px 40px -5px rgba(0, 0, 0, 0.08)',
+                    }
+                },
+            },
+        };
+    </script>
+<style type="text/tailwindcss">
+        body {
+            @apply bg-white text-gray-900 antialiased overflow-x-hidden;
+            background-image: 
+                radial-gradient(circle at 100% 0%, #f3f4f6 0%, transparent 25%),
+                radial-gradient(circle at 0% 100%, #f3f4f6 0%, transparent 25%);
+        }
+        .nav-link {
+            @apply relative flex items-center justify-center w-10 h-10 rounded-xl text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all duration-300;
+        }
+        .nav-link.active {
+            @apply text-blue-600 bg-blue-50 shadow-sm;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #ffffff; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #e5e7eb; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #d1d5db; 
+        }
+        .prose p {
+            @apply text-gray-600 text-lg leading-relaxed mb-6 font-serif;
+        }
+        .prose h2 {
+            @apply text-2xl font-bold font-display text-gray-900 mt-10 mb-4 tracking-tight;
+        }
+        .prose ul {
+            @apply list-disc list-outside ml-6 mb-6 text-gray-600 text-lg font-serif;
+        }
+        .prose li {
+            @apply mb-2;
+        }
+        .prose code {
+            @apply bg-gray-100 text-pink-600 px-1.5 py-0.5 rounded text-sm font-mono;
+        }
+        .prose pre {
+            @apply bg-gray-900 text-gray-100 p-6 rounded-xl overflow-x-auto mb-8 font-mono text-sm leading-relaxed border border-gray-800 shadow-lg;
+        }
+        .prose blockquote {
+            @apply border-l-4 border-blue-500 pl-6 py-2 my-8 italic text-xl text-gray-500 bg-blue-50/30 rounded-r-lg;
+        }
+        .sticky-sidebar {
+            @apply sticky top-32;
+        }
+    </style>
+</head>
+<body class="flex min-h-screen selection:bg-gray-900 selection:text-white">
+<nav class="fixed left-0 top-0 h-full w-20 z-50 flex flex-col items-center py-8 bg-white border-r border-gray-100 hidden md:flex">
+<div class="mb-12">
+<a class="block p-2 rounded-xl bg-gray-900 shadow-lg shadow-gray-200 hover:scale-105 transition-transform" href="#">
+<span class="material-symbols-outlined text-white text-2xl">hub</span>
+</a>
+</div>
+<div class="flex-1 flex flex-col gap-6 w-full px-4 items-center">
+<a class="nav-link group" href="#" title="Home">
+<span class="material-symbols-outlined font-light">home</span>
+</a>
+<a class="nav-link group" href="#" title="Topics">
+<span class="material-symbols-outlined font-light">explore</span>
+</a>
+<a class="nav-link active group" href="#" title="Discussions">
+<span class="material-symbols-outlined font-light">forum</span>
+</a>
+<a class="nav-link group" href="#" title="Trending">
+<span class="material-symbols-outlined font-light">trending_up</span>
+</a>
+<div class="w-8 h-[1px] bg-gray-100 my-2"></div>
+<a class="nav-link group" href="#" title="Bookmarks">
+<span class="material-symbols-outlined font-light">bookmark</span>
+</a>
+</div>
+<div class="mt-auto">
+<a class="w-10 h-10 rounded-full overflow-hidden border border-gray-200 hover:border-blue-600 transition-colors block" href="#">
+<div class="w-full h-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-700">ME</div>
+</a>
+</div>
+</nav>
+<div class="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 z-50 flex justify-around p-4">
+<a class="text-gray-400" href="#"><span class="material-symbols-outlined">home</span></a>
+<a class="text-blue-600" href="#"><span class="material-symbols-outlined">forum</span></a>
+<a class="text-gray-400" href="#"><span class="material-symbols-outlined">person</span></a>
+</div>
+<main class="flex-1 md:ml-20 p-6 lg:p-12 relative max-w-screen-2xl mx-auto">
+<header class="flex justify-between items-center mb-12 lg:mb-20">
+<div class="flex items-center gap-3">
+<button class="md:hidden p-2 -ml-2 text-gray-500"><span class="material-symbols-outlined">menu</span></button>
+<div class="text-sm breadcrumbs text-gray-500 font-mono hidden sm:block">
+<span class="hover:text-gray-900 cursor-pointer transition-colors">Discussions</span>
+<span class="mx-2 text-gray-300">/</span>
+<span class="hover:text-gray-900 cursor-pointer transition-colors">AI Frontier</span>
+<span class="mx-2 text-gray-300">/</span>
+<span class="text-gray-900 font-medium">Post #8291</span>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden lg:block group">
+<input class="w-48 bg-transparent border-b border-gray-200 py-1 pl-8 pr-4 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-gray-900 transition-all" placeholder="Search..." type="text"/>
+<span class="material-symbols-outlined absolute left-0 top-1 text-gray-400 text-[1.1rem]">search</span>
+</div>
+<button class="relative p-2 text-gray-400 hover:text-gray-900 transition-colors">
+<span class="material-symbols-outlined font-light">notifications</span>
+</button>
+</div>
+</header>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-12 relative">
+<aside class="hidden lg:block lg:col-span-2 relative">
+<div class="sticky-sidebar flex flex-col items-center text-center space-y-6">
+<div class="relative group cursor-pointer">
+<div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-100 to-indigo-50 border border-gray-200 overflow-hidden shadow-soft">
+<img alt="Author" class="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBqA8BK8-sWGqcubu1kwZ1R2U1MULkYF9hScUOY66WvHNki2th4tGcYzd0v9gEy_kHforF7vY-WUNcW0PAjewO7Fi4CQhekjzZBHkL5Pg_Qe-99ZLOqsfAJZUFkHSoukqISJAyleJeu0Pr5EA89GGdhsxAAVlMfFLofzFV09J8LvJWx1gmsDMf7g4tZvhSLm1uOKeU7YHsalLKeJwIl0D6J-ps40wtj_FtwAFX3gk2OW1_TocqxgvV6nxijuJBgwDU6cmGzP5-FCp8G"/>
+</div>
+<div class="absolute -bottom-2 -right-2 bg-blue-600 text-white rounded-full p-1 border-2 border-white">
+<span class="material-symbols-outlined text-[14px] block">verified</span>
+</div>
+</div>
+<div>
+<h3 class="font-display font-bold text-gray-900 text-lg">Alex Chen</h3>
+<p class="text-xs text-gray-500 font-mono mt-1">@alx_systems</p>
+<p class="text-xs text-gray-400 mt-2">AI Research Lead</p>
+</div>
+<button class="w-full py-2 px-4 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-900 hover:text-white hover:border-gray-900 transition-all duration-300 shadow-sm">
+                        Follow
+                    </button>
+<div class="pt-6 border-t border-gray-100 w-full flex justify-center gap-4 text-gray-400">
+<a class="hover:text-blue-600 transition-colors" href="#"><span class="material-symbols-outlined text-lg">mail</span></a>
+<a class="hover:text-blue-600 transition-colors" href="#"><span class="material-symbols-outlined text-lg">link</span></a>
+</div>
+</div>
+</aside>
+<article class="lg:col-span-7 lg:px-4">
+<div class="mb-8">
+<div class="flex flex-wrap gap-2 mb-6">
+<span class="px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-semibold tracking-wide uppercase border border-blue-100">Deep Dive</span>
+<span class="px-3 py-1 rounded-full bg-gray-50 text-gray-500 text-xs font-medium tracking-wide border border-gray-100">5 min read</span>
+<span class="px-3 py-1 rounded-full bg-gray-50 text-gray-500 text-xs font-medium tracking-wide border border-gray-100">Nov 14, 2026</span>
+</div>
+<h1 class="text-4xl md:text-5xl lg:text-6xl font-serif font-black text-gray-900 leading-[1.1] mb-8 tracking-tight">
+                        The Architectural Shift: Agentic Workflows in Production
+                    </h1>
+<p class="text-xl md:text-2xl text-gray-500 font-light leading-relaxed font-display">
+                        Why single-prompt LLM calls are becoming obsolete, and how multi-agent orchestration is redefining backend logic for 2027 applications.
+                    </p>
+</div>
+<div class="w-full h-96 bg-gray-100 rounded-2xl overflow-hidden mb-12 shadow-card relative group">
+<img alt="AI Abstract Architecture" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCfhNJdNOanlj81KSE4jS5TCIvPQvTuPtEXqi-7Z7PfIjIJXaXkT0tZV3-TlZCIZG8GC6wiCcELl6sAyDyr-CySnGYSYEqYX0Vz5j1E8n_bAqI9DxtuxQrTLq3Ol0GLkywdAFUmDRLMejxD3vIZ5MFRdIyDylrfXMTdgcs42Qiq-evPTtyyGS5Z5wMtLU4DjX-UmPEqC2lSOwhUcX-mFJjFgxQEIkzlPeQJkgr8iCFol7Z8Mi5UbOnc7A4tW667zS5Up6Xh4t_Mydye"/>
+<div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 to-transparent p-6">
+<p class="text-white/80 text-xs font-mono">Figure 1.0: Neural pathways visualization</p>
+</div>
+</div>
+<div class="prose max-w-none">
+<p>
+                        The era of the "god prompt" is officially over. As we move towards more autonomous systems in late 2026, the complexity of tasks we demand from AI models has outstripped the capacity of single-context windows, no matter how large they've grown (looking at you, Gemini 3.0).
+                    </p>
+<p>
+                        Instead, we are seeing a massive pivot towards <strong>Agentic Workflows</strong>. This isn't just about chaining prompts; it's about creating distinct "personas" or functional units within your codebase that have specific tools, memory scopes, and success criteria.
+                    </p>
+<h2 id="section-1">The Loop Pattern</h2>
+<p>
+                        One of the most robust patterns emerging is the "Reasoning Loop". Instead of asking for a final answer, we ask the model to plan, execute a step, observe the result, and then replan. 
+                    </p>
+<pre><code class="language-python">class AgenticLoop:
+    def __init__(self, tools, model):
+        self.tools = tools
+        self.model = model
+        self.memory = []
+    async def run(self, objective):
+        current_state = objective
+        while not self.is_solved(current_state):
+            plan = await self.model.plan(current_state, self.memory)
+            action = self.select_tool(plan)
+            result = await action.execute()
+            self.memory.append((plan, result))
+            current_state = self.update_state(result)
+        return current_state</code></pre>
+<p>
+                        This simple Python pseudo-code illustrates the fundamental shift. The logic is no longer linear; it's iterative. The <code>while</code> loop allows the system to self-correct—a capability completely absent in zero-shot architectures.
+                    </p>
+<blockquote>
+                        "We are no longer writing code that defines the solution. We are writing code that defines the environment in which the solution is discovered."
+                    </blockquote>
+<h2 id="section-2">State Management Challenges</h2>
+<p>
+                        With great power comes great state management headaches. When you have five agents collaborating on a pull request analysis, maintaining a shared "truth" without hallucination propagation is the new distributed systems problem.
+                    </p>
+<ul>
+<li><strong>Shared Context:</strong> Using vector databases for long-term memory vs. ephemeral context windows.</li>
+<li><strong>Consensus Mechanisms:</strong> Implementing voting systems where multiple agents must agree on a critical output.</li>
+<li><strong>Tool Permissioning:</strong> Sandbox environments are critical. You don't want your code-refactoring agent to have unrestricted network access.</li>
+</ul>
+<h2 id="section-3">Conclusion</h2>
+<p>
+                        The shift to agentic workflows represents the maturity of Generative AI. It moves us from "chatbots" to "digital employees". The infrastructure required to support this is still nascent, but the primitives are being standardized as we speak.
+                    </p>
+</div>
+<div class="flex lg:hidden items-center justify-between border-t border-gray-100 pt-6 mt-8">
+<div class="flex gap-4">
+<button class="flex items-center gap-1 text-gray-500"><span class="material-symbols-outlined">thumb_up</span> 2.4k</button>
+<button class="flex items-center gap-1 text-gray-500"><span class="material-symbols-outlined">chat_bubble</span> 84</button>
+</div>
+<button class="text-gray-500"><span class="material-symbols-outlined">bookmark</span></button>
+</div>
+<div class="mt-16 border-t border-gray-100 pt-12">
+<h3 class="font-display text-2xl font-bold text-gray-900 mb-8">Discussion (84)</h3>
+<div class="flex gap-4 mb-10">
+<div class="w-10 h-10 rounded-full bg-gray-200 flex-shrink-0"></div>
+<div class="flex-1">
+<textarea class="w-full border border-gray-200 rounded-xl p-4 text-sm focus:ring-2 focus:ring-gray-900 focus:border-transparent min-h-[100px] resize-y" placeholder="Add to the discussion..."></textarea>
+<div class="flex justify-end mt-2">
+<button class="px-6 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-black transition-colors">Post Comment</button>
+</div>
+</div>
+</div>
+<div class="space-y-8">
+<div class="group">
+<div class="flex gap-4">
+<div class="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-xs flex-shrink-0">JS</div>
+<div class="flex-1">
+<div class="flex justify-between items-baseline mb-1">
+<h4 class="text-sm font-bold text-gray-900">Jason Statham <span class="text-gray-400 font-normal ml-2">@json_stat</span></h4>
+<span class="text-xs text-gray-400">2h ago</span>
+</div>
+<p class="text-gray-600 text-sm leading-relaxed">
+                                        The pseudo-code for the loop is clean, but how do you handle the token limit explosion when the memory array gets too large? Do you have a summarization step?
+                                    </p>
+<div class="flex gap-4 mt-3">
+<button class="text-xs font-semibold text-gray-400 hover:text-blue-600 flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[14px]">thumb_up</span> 12
+                                        </button>
+<button class="text-xs font-semibold text-gray-400 hover:text-blue-600 transition-colors">Reply</button>
+</div>
+</div>
+</div>
+</div>
+<div class="group pl-14 border-l-2 border-gray-50">
+<div class="flex gap-4">
+<img alt="Alex Chen" class="w-8 h-8 rounded-full object-cover flex-shrink-0 opacity-80" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCIzgSRBTZi7ThXFDve1eyokbJ26Q_eWRW_4ZEybVDvmcRDFoMQyIj-aecGDnQRIbVMa2SqAmTGaNrooq6X4VvQwiHz2HjTrcA1Ters0kKp502h39NjRo4zSqfNcMR7fggcVxfr-m9ZU7NBAE1npfbSdFrqTxtevkYp4_Vcmt47ivJt8fPUkLaWURTTd6SBhhCmRBvFS2dzS44XfA1VW2knCI1fSTUoV3wi-KwOb8zFFBxhJw3OsjL0hpTc88urNt158ZLL0FiqqzbB"/>
+<div class="flex-1">
+<div class="flex justify-between items-baseline mb-1">
+<h4 class="text-sm font-bold text-gray-900">Alex Chen <span class="bg-gray-100 text-gray-500 text-[10px] px-1.5 py-0.5 rounded ml-2">Author</span></h4>
+<span class="text-xs text-gray-400">1h ago</span>
+</div>
+<p class="text-gray-600 text-sm leading-relaxed">
+                                        Great question. Yes, typically we implement a sliding window or a semantic summarization step once `len(memory)` hits a threshold. It's a tradeoff between context fidelity and cost.
+                                    </p>
+<div class="flex gap-4 mt-3">
+<button class="text-xs font-semibold text-gray-400 hover:text-blue-600 flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[14px]">thumb_up</span> 5
+                                        </button>
+<button class="text-xs font-semibold text-gray-400 hover:text-blue-600 transition-colors">Reply</button>
+</div>
+</div>
+</div>
+</div>
+<div class="group">
+<div class="flex gap-4">
+<div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-xs flex-shrink-0">ML</div>
+<div class="flex-1">
+<div class="flex justify-between items-baseline mb-1">
+<h4 class="text-sm font-bold text-gray-900">Maria Lopez <span class="text-gray-400 font-normal ml-2">@ml_maria</span></h4>
+<span class="text-xs text-gray-400">4h ago</span>
+</div>
+<p class="text-gray-600 text-sm leading-relaxed">
+                                        I've been using LangGraph for this. The directed cyclic graph approach makes visualizing these loops so much easier than raw Python loops.
+                                    </p>
+<div class="flex gap-4 mt-3">
+<button class="text-xs font-semibold text-gray-400 hover:text-blue-600 flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[14px]">thumb_up</span> 8
+                                        </button>
+<button class="text-xs font-semibold text-gray-400 hover:text-blue-600 transition-colors">Reply</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<button class="w-full mt-10 py-3 border border-gray-100 text-gray-500 text-sm font-medium rounded-xl hover:bg-gray-50 transition-colors">Load more comments</button>
+</div>
+</article>
+<aside class="hidden lg:block lg:col-span-3 relative">
+<div class="sticky-sidebar space-y-8 pl-8 border-l border-gray-100">
+<div class="flex flex-col gap-3">
+<button class="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-blue-50 text-gray-500 hover:text-blue-600 transition-all group">
+<span class="material-symbols-outlined group-hover:fill-current">thumb_up</span>
+<span class="text-sm font-medium">2.4k Likes</span>
+</button>
+<button class="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-blue-50 text-gray-500 hover:text-blue-600 transition-all group">
+<span class="material-symbols-outlined">chat_bubble</span>
+<span class="text-sm font-medium">84 Comments</span>
+</button>
+<button class="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-blue-50 text-gray-500 hover:text-blue-600 transition-all group">
+<span class="material-symbols-outlined">bookmark_add</span>
+<span class="text-sm font-medium">Save for later</span>
+</button>
+<button class="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-blue-50 text-gray-500 hover:text-blue-600 transition-all group">
+<span class="material-symbols-outlined">ios_share</span>
+<span class="text-sm font-medium">Share</span>
+</button>
+</div>
+<div class="h-[1px] w-full bg-gray-100"></div>
+<div>
+<h4 class="text-xs font-bold text-gray-900 uppercase tracking-widest mb-4">On this page</h4>
+<ul class="space-y-3 text-sm border-l-2 border-gray-100 ml-1">
+<li>
+<a class="block pl-4 py-1 border-l-2 -ml-[2px] border-blue-600 text-blue-600 font-medium" href="#">Introduction</a>
+</li>
+<li>
+<a class="block pl-4 py-1 border-l-2 -ml-[2px] border-transparent text-gray-500 hover:text-gray-900 hover:border-gray-300 transition-all" href="#section-1">The Loop Pattern</a>
+</li>
+<li>
+<a class="block pl-4 py-1 border-l-2 -ml-[2px] border-transparent text-gray-500 hover:text-gray-900 hover:border-gray-300 transition-all" href="#section-2">State Management</a>
+</li>
+<li>
+<a class="block pl-4 py-1 border-l-2 -ml-[2px] border-transparent text-gray-500 hover:text-gray-900 hover:border-gray-300 transition-all" href="#section-3">Conclusion</a>
+</li>
+</ul>
+</div>
+<div class="mt-8 pt-8 border-t border-gray-100">
+<h4 class="text-xs font-bold text-gray-900 uppercase tracking-widest mb-4">Next Up</h4>
+<div class="group cursor-pointer">
+<div class="aspect-video w-full bg-gray-100 rounded-lg overflow-hidden mb-3">
+<img alt="Next post" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD5txmguHQvnQE67nWKwBUhnL6GTaud5nAEEYGXYv9D3hz-U-Z8hnS9Px_0aqX5xbbp5KmOOJ9TELIsx89tNCg7iSCuoAYkCCyLsRVpRG0ra-3i1ZKqaVl2IKrtHs3SZMYSD_EMfbsgHDUztJGgByzUEUpVkcwzdmTI6IRLiA2ByMWT7VW3DiIHc-5M6CCZasQbvbqO_VDj9L3QADbapxI-b_mM3v5KMEII7GVez6wHiR-jQsOGtr5BSvynfodI62J4dI7IoyCmOAVA"/>
+</div>
+<h5 class="text-sm font-bold text-gray-900 leading-snug group-hover:text-blue-600 transition-colors">
+                                Vector Databases: Beyond RAG
+                            </h5>
+</div>
+</div>
+</div>
+</aside>
+</div>
+<footer class="mt-32 pb-8 border-t border-gray-100 pt-8">
+<div class="flex flex-col md:flex-row justify-between items-center text-xs text-gray-500 font-mono">
+<p>© 2026 FreeBoard Community.</p>
+<div class="flex gap-6 mt-4 md:mt-0">
+<a class="hover:text-gray-900 transition-colors" href="#">Privacy</a>
+<a class="hover:text-gray-900 transition-colors" href="#">Terms</a>
+<a class="hover:text-gray-900 transition-colors" href="#">Decentralized Protocol</a>
+</div>
+</div>
+</footer>
+</main>
+
+</body></html>

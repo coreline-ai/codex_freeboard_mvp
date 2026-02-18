@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getAuthContext, requireAuth } from "@/lib/api/auth";
+import { assertBoardWriteAccess, getBoardByIdForWrite } from "@/lib/api/board-access";
 import { handleRouteError } from "@/lib/api/errors";
 import { safeJson } from "@/lib/api/request";
 import { fail, ok } from "@/lib/api/response";
@@ -121,10 +122,26 @@ export async function PATCH(request: Request, context: { params: Promise<{ postI
     }
 
     const admin = getSupabaseAdminClient();
-    const { data: post, error: postError } = await admin.from("posts").select("*").eq("id", postId).single();
+    const { data: post, error: postError } = await admin
+      .from("posts")
+      .select("*")
+      .eq("id", postId)
+      .is("deleted_at", null)
+      .maybeSingle();
     if (postError) {
       throw postError;
     }
+
+    if (!post) {
+      return fail(404, "Post not found");
+    }
+
+    const board = await getBoardByIdForWrite(admin, post.board_id);
+    assertBoardWriteAccess({
+      board,
+      actor: { userId: ctx.userId, isAdmin: ctx.isAdmin },
+      action: "post_write",
+    });
 
     if (post.author_id !== ctx.userId && !ctx.isAdmin) {
       return fail(403, "Forbidden");
@@ -156,10 +173,26 @@ export async function DELETE(request: Request, context: { params: Promise<{ post
     const { postId } = paramsSchema.parse(await context.params);
 
     const admin = getSupabaseAdminClient();
-    const { data: post, error: postError } = await admin.from("posts").select("*").eq("id", postId).single();
+    const { data: post, error: postError } = await admin
+      .from("posts")
+      .select("*")
+      .eq("id", postId)
+      .is("deleted_at", null)
+      .maybeSingle();
     if (postError) {
       throw postError;
     }
+
+    if (!post) {
+      return fail(404, "Post not found");
+    }
+
+    const board = await getBoardByIdForWrite(admin, post.board_id);
+    assertBoardWriteAccess({
+      board,
+      actor: { userId: ctx.userId, isAdmin: ctx.isAdmin },
+      action: "post_write",
+    });
 
     if (post.author_id !== ctx.userId && !ctx.isAdmin) {
       return fail(403, "Forbidden");

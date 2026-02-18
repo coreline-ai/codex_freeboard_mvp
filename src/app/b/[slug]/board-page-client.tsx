@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { publicApiFetch } from "@/lib/client-api";
+import styles from "./board-page.module.css";
 
 interface BoardPostsResponse {
   board: {
@@ -39,6 +40,10 @@ function makePageList(current: number, total: number) {
     pages.push(i);
   }
   return pages;
+}
+
+function excerpt(content: string) {
+  return content.replace(/\s+/g, " ").trim().slice(0, 130);
 }
 
 export default function BoardPage() {
@@ -118,6 +123,9 @@ export default function BoardPage() {
   const totalPages = result ? Math.max(Math.ceil(result.total / result.pageSize), 1) : 1;
   const pageList = makePageList(page, totalPages);
 
+  const noticeCount = (result?.posts ?? []).filter((post) => post.is_notice || post.is_pinned).length;
+  const generalCount = (result?.posts ?? []).filter((post) => !post.is_notice && !post.is_pinned).length;
+
   const pushPage = (nextPage: number) => {
     const query = new URLSearchParams({ page: String(nextPage) });
     if (activeQ) {
@@ -136,96 +144,154 @@ export default function BoardPage() {
   };
 
   return (
-    <div className="page-shell">
-      <section className="hero-panel stack">
-        <h1 className="page-title">{result?.board.name ?? slug}</h1>
-        <p className="page-description">{result?.board.description ?? "게시판"}</p>
+    <div className={styles.boardDetailShell}>
+      <header className={styles.boardDetailHero}>
+        <div className={styles.boardDetailBread}>
+          <Link href="/">Discussions</Link>
+          <span>/</span>
+          <strong>{result?.board.name ?? slug}</strong>
+        </div>
 
-        <div className="toolbar">
-          <form className="toolbar-form" onSubmit={onSearch}>
+        <h1>{result?.board.name ?? slug}</h1>
+        <p>{result?.board.description ?? "게시판"}</p>
+
+        <div className={styles.boardDetailToolbar}>
+          <form className={styles.boardDetailSearchForm} onSubmit={onSearch}>
             <input
-              className="search-input"
               value={queryInput}
               onChange={(event) => setQueryInput(event.target.value)}
               placeholder="제목/본문 검색"
+              aria-label="검색"
             />
             <button type="submit">검색</button>
           </form>
 
-          <div className="row">
+          <div className={styles.boardDetailControlRow}>
             <select value={filter} onChange={(event) => setFilter(event.target.value as PostFilter)}>
               <option value="all">전체 글</option>
               <option value="notice">공지/고정</option>
               <option value="general">일반 글</option>
             </select>
+
             {profile ? (
-              <Link href={`/b/${slug}/write`} className="button primary">
+              <Link href={`/b/${slug}/write`} className={styles.boardDetailPrimaryButton}>
                 글쓰기
               </Link>
             ) : (
-              <Link href="/login" className="button">
+              <Link href="/login" className={styles.boardDetailGhostButton}>
                 로그인 후 글쓰기
               </Link>
             )}
           </div>
         </div>
-      </section>
+      </header>
 
-      {error ? <div className="error">{error}</div> : null}
+      {error ? <div className={styles.boardDetailError}>{error}</div> : null}
 
-      <section className="card stack">
-        <div className="panel-header">
-          <h2 className="panel-title">게시글 목록</h2>
-          <span className="muted">
-            페이지 {page} / {totalPages}
-          </span>
-        </div>
-
-        {loading ? <div className="empty-state">게시글을 불러오는 중입니다...</div> : null}
-
-        {!loading && visiblePosts.length === 0 ? (
-          <div className="empty-state">조건에 맞는 게시글이 없습니다.</div>
-        ) : null}
-
-        <div className="list">
-          {visiblePosts.map((post) => (
-            <Link href={`/p/${post.id}`} key={post.id} className="list-item">
-              <div className="row" style={{ justifyContent: "space-between" }}>
-                <div className="row">
-                  {post.is_notice ? <span className="badge notice">공지</span> : null}
-                  {post.is_pinned ? <span className="badge pinned">고정</span> : null}
-                  <strong>{post.title}</strong>
-                </div>
-                <span className="muted">{new Date(post.created_at).toLocaleString()}</span>
-              </div>
-              <div className="muted">
-                {post.author_nickname} · 댓글 {post.comment_count} · 좋아요 {post.like_count}
-              </div>
-            </Link>
-          ))}
-        </div>
-
-        {totalPages > 1 ? (
-          <div className="pagination">
-            <button type="button" onClick={() => pushPage(page - 1)} disabled={page <= 1}>
-              이전
-            </button>
-            {pageList.map((targetPage) => (
-              <button
-                type="button"
-                key={targetPage}
-                className={`button ${targetPage === page ? "active" : ""}`}
-                onClick={() => pushPage(targetPage)}
-              >
-                {targetPage}
-              </button>
-            ))}
-            <button type="button" onClick={() => pushPage(page + 1)} disabled={page >= totalPages}>
-              다음
-            </button>
+      <div className={styles.boardDetailGrid}>
+        <section className={styles.boardDetailListPanel}>
+          <div className={styles.boardDetailListHeader}>
+            <h2>게시글 목록</h2>
+            <span>
+              page {page} / {totalPages}
+            </span>
           </div>
-        ) : null}
-      </section>
+
+          {loading ? <div className={styles.boardDetailEmpty}>게시글을 불러오는 중입니다...</div> : null}
+
+          {!loading && visiblePosts.length === 0 ? (
+            <div className={styles.boardDetailEmpty}>조건에 맞는 게시글이 없습니다.</div>
+          ) : null}
+
+          <div className={styles.boardDetailPostList}>
+            {visiblePosts.map((post) => (
+              <Link href={`/p/${post.id}`} key={post.id} className={styles.boardDetailPostCard}>
+                <div className={styles.boardDetailPostTop}>
+                  <div className={styles.boardDetailTagRow}>
+                    {post.is_notice ? <span className={`${styles.boardDetailTag} ${styles.boardDetailTagNotice}`}>공지</span> : null}
+                    {post.is_pinned ? <span className={`${styles.boardDetailTag} ${styles.boardDetailTagPinned}`}>고정</span> : null}
+                    <strong>{post.title}</strong>
+                  </div>
+                  <span>{new Date(post.created_at).toLocaleString()}</span>
+                </div>
+
+                <p>{excerpt(post.content)}</p>
+
+                <div className={styles.boardDetailPostMeta}>
+                  <span>{post.author_nickname}</span>
+                  <span>댓글 {post.comment_count}</span>
+                  <span>좋아요 {post.like_count}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          {totalPages > 1 ? (
+            <div className={styles.boardDetailPagination}>
+              <button type="button" onClick={() => pushPage(page - 1)} disabled={page <= 1}>
+                이전
+              </button>
+              {pageList.map((targetPage) => (
+                <button
+                  type="button"
+                  key={targetPage}
+                  className={targetPage === page ? styles.boardDetailPageActive : ""}
+                  onClick={() => pushPage(targetPage)}
+                >
+                  {targetPage}
+                </button>
+              ))}
+              <button type="button" onClick={() => pushPage(page + 1)} disabled={page >= totalPages}>
+                다음
+              </button>
+            </div>
+          ) : null}
+        </section>
+
+        <aside className={styles.boardDetailSidePanel}>
+          <section className={styles.boardDetailSideCard}>
+            <h3>Board Stats</h3>
+            <dl>
+              <div>
+                <dt>Total</dt>
+                <dd>{result?.total ?? 0}</dd>
+              </div>
+              <div>
+                <dt>Notice</dt>
+                <dd>{noticeCount}</dd>
+              </div>
+              <div>
+                <dt>General</dt>
+                <dd>{generalCount}</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section className={styles.boardDetailSideCard}>
+            <h3>Quick Actions</h3>
+            <div className={styles.boardDetailSideActions}>
+              {profile ? (
+                <Link href={`/b/${slug}/write`} className={styles.boardDetailPrimaryButton}>
+                  새 글 작성
+                </Link>
+              ) : (
+                <Link href="/login" className={styles.boardDetailGhostButton}>
+                  로그인
+                </Link>
+              )}
+              <Link href="/search?page=1" className={styles.boardDetailGhostButton}>
+                통합 검색
+              </Link>
+            </div>
+          </section>
+
+          <section className={styles.boardDetailSideCard}>
+            <h3>Current Filter</h3>
+            <p>{filter === "all" ? "전체 게시글" : filter === "notice" ? "공지/고정" : "일반 게시글"}</p>
+            <p>{activeQ ? `검색어: ${activeQ}` : "검색어 없음"}</p>
+          </section>
+        </aside>
+      </div>
     </div>
   );
 }

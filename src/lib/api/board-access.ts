@@ -1,7 +1,13 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import { appError } from "@/lib/api/app-error";
 
-export type BoardWriteAction = "create_post" | "create_comment" | "like_post" | "report";
+export type BoardWriteAction =
+  | "create_post"
+  | "post_write"
+  | "create_comment"
+  | "comment_write"
+  | "like_post"
+  | "report";
 
 export interface BoardWriteActor {
   userId: string;
