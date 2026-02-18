@@ -1,4 +1,4 @@
-# FreeBoard MVP
+# ✨ FreeBoard MVP
 
 [![Next.js](https://img.shields.io/badge/Next.js-16.1.6-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![Supabase](https://img.shields.io/badge/Supabase-Auth%20%2B%20Postgres-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
@@ -8,12 +8,12 @@
 Next.js + Supabase 기반 자유 게시판 MVP입니다.  
 회원가입/로그인, 다중 게시판, 게시글/댓글/신고/좋아요, 관리자 운영 기능, 통합 검색(FTS), 로컬 Supabase 스택 테스트까지 포함합니다.
 
-<img width="2946" height="2368" alt="screencapture-localhost-3001-2026-02-17-12_20_28" src="https://github.com/user-attachments/assets/c3b11a0b-ecad-4fa4-bfa8-b09a8ce3f065" />
+<img width="2946" height="3260" alt="screencapture-127-0-0-1-3000-2026-02-18-21_14_38" src="https://github.com/user-attachments/assets/83769c55-33e1-41b5-bd75-b61ec8d7261e" />
 
-# one-shot prompt (Codex 5.3 Plan-Mode)
+# 🚀 one-shot prompt (Codex 5.3 Plan-Mode)
 자유 게시판을 만들꺼야! 게시판의 기본 기능은 웹을 통해 확인 하고, 필요한 기능은 모두 추가 해줘! 관리자 모드를 만들어 게시판 무한 복사 및 생성이 가능해야해! 개별 유저 가입 로그인 기능도 들어가야하고 관리자는 기본 유저 관리도 가능 해야해. 배포는 netifly에 가능한 구조로 우선 작업 되어야해, 디비는 슈파베이스를 이용할꺼야. 구현 시작
 
-## 목차
+## 🔍 목차
 
 - [핵심 구현 기능](#핵심-구현-기능)
 - [기술 스택](#기술-스택)
@@ -29,7 +29,7 @@ Next.js + Supabase 기반 자유 게시판 MVP입니다.
 - [Netlify 배포](#netlify-배포)
 - [운영 메모](#운영-메모)
 
-## 핵심 구현 기능
+## 🧱 핵심 구현 기능
 
 ### 사용자 기능
 
@@ -61,7 +61,7 @@ Next.js + Supabase 기반 자유 게시판 MVP입니다.
 - 관리자 초기 부트스트랩 1회 자동 승격
 - `GET /api/health` 환경변수/런타임 헬스체크
 
-## 기술 스택
+## 📊 기술 스택
 
 - `Next.js 16` (App Router, Route Handlers)
 - `React 19`
@@ -71,7 +71,7 @@ Next.js + Supabase 기반 자유 게시판 MVP입니다.
 - `Vitest` (단위 테스트)
 - `Netlify` + `@netlify/plugin-nextjs`
 
-## 프로젝트 구조
+## 📋 프로젝트 구조
 
 ```text
 .
@@ -99,7 +99,7 @@ Next.js + Supabase 기반 자유 게시판 MVP입니다.
 └── docs/
 ```
 
-## 화면 라우트
+## 🎨 화면 라우트
 
 | 경로 | 설명 |
 | --- | --- |
@@ -115,7 +115,7 @@ Next.js + Supabase 기반 자유 게시판 MVP입니다.
 | `/admin/users` | 유저 관리 |
 | `/admin/reports` | 신고 관리 |
 
-## API 라우트
+## 🧠 API 라우트
 
 모든 응답은 기본적으로 아래 포맷을 사용합니다.
 
@@ -166,7 +166,7 @@ Next.js + Supabase 기반 자유 게시판 MVP입니다.
 | `GET` | `/api/admin/reports` | 신고 목록 조회 |
 | `PATCH` | `/api/admin/reports` | 신고 처리(`resolved/rejected`) |
 
-## 데이터베이스 설계
+## 🐳 데이터베이스 설계
 
 마이그레이션 파일:
 
