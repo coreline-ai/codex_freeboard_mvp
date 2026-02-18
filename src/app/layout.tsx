@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Noto_Sans_KR, Space_Grotesk } from "next/font/google";
 import { AuthProvider } from "@/components/auth-provider";
-import { TopNav } from "@/components/top-nav";
+import { AppShell } from "@/components/app-shell";
 import { WebVitalsReporter } from "@/components/web-vitals-reporter";
 import "./globals.css";
 
@@ -32,8 +32,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className={`${bodyFont.variable} ${displayFont.variable}`}>
         <AuthProvider>
           <WebVitalsReporter />
-          <TopNav />
-          <main className="container main-content">{children}</main>
+          <AppShell>{children}</AppShell>
         </AuthProvider>
       </body>
     </html>
