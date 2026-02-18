@@ -29,6 +29,13 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
   },
+  openGraph: {
+    title: "FreeBoard | Home",
+    description: "실시간 기술 토론과 보드 활동을 한눈에 보는 FreeBoard 메인 랜딩 페이지",
+    url: "/",
+    siteName: "FreeBoard",
+    type: "website",
+  },
 };
 
 function formatRelativeTime(iso: string): string {
@@ -164,7 +171,12 @@ export default async function HomePage() {
         </Link>
 
         <div className={styles.landingRailLinks}>
-          <Link href="/" className={`${styles.landingRailLink} ${styles.landingRailLinkActive}`} aria-label="Home">
+          <Link
+            href="/"
+            className={`${styles.landingRailLink} ${styles.landingRailLinkActive}`}
+            aria-label="Home"
+            aria-current="page"
+          >
             HM
           </Link>
           <Link href="/search?page=1" className={styles.landingRailLink} aria-label="Search">
@@ -200,6 +212,7 @@ export default async function HomePage() {
 
           <div className={styles.landingTopbarActions}>
             <form action="/search" method="get" className={styles.landingSearchForm} aria-label="Search discussions">
+              <input type="hidden" name="page" value="1" />
               <input
                 className={styles.landingSearchInput}
                 type="search"
