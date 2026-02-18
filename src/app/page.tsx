@@ -1,139 +1,349 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Board } from "@/types/domain";
+import styles from "./page.module.css";
 
-interface HomePost {
+interface LandingBoard {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  postCount: number;
+  tone: string;
+}
+
+interface LandingActivity {
   id: string;
   title: string;
-  created_at: string;
-  author_nickname: string;
-  comment_count?: number;
-  like_count?: number;
+  createdAt: string;
+  authorNickname: string;
+  boardSlug: string;
+}
+
+const BOARD_TONES = ["toneBlue", "toneViolet", "toneEmerald", "toneRose", "toneCyan", "toneAmber"];
+
+export const metadata: Metadata = {
+  title: "Home",
+  description: "실시간 기술 토론과 보드 활동을 한눈에 보는 FreeBoard 메인 랜딩 페이지",
+  alternates: {
+    canonical: "/",
+  },
+};
+
+function formatRelativeTime(iso: string): string {
+  const time = new Date(iso).getTime();
+  if (Number.isNaN(time)) {
+    return "just now";
+  }
+
+  const diffSeconds = Math.max(0, Math.floor((Date.now() - time) / 1000));
+  if (diffSeconds < 60) {
+    return `${diffSeconds}s ago`;
+  }
+
+  const minutes = Math.floor(diffSeconds / 60);
+  if (minutes < 60) {
+    return `${minutes}m ago`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    return `${hours}h ago`;
+  }
+
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+function boardInitial(name: string): string {
+  const normalized = name.replace(/\s+/g, "").trim();
+  if (!normalized) {
+    return "BD";
+  }
+  return normalized.slice(0, 2).toUpperCase();
 }
 
 export default async function HomePage() {
   const admin = getSupabaseAdminClient();
 
-  let boards: Board[] = [];
-  let latestPosts: HomePost[] = [];
-  let error: string | null = null;
+  let boards: LandingBoard[] = [];
+  let activities: LandingActivity[] = [];
+  let boardError = false;
+  let activityError = false;
 
-  const { data: boardRows, error: boardsError } = await admin
-    .from("boards")
-    .select("*")
-    .eq("is_public", true)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: true });
-
-  if (boardsError) {
-    error = "게시판 목록을 불러오지 못했습니다.";
-  } else {
-    boards = (boardRows ?? []) as Board[];
-  }
-
-  const { data: freeboard } = await admin
-    .from("boards")
-    .select("id")
-    .eq("slug", "freeboard")
-    .eq("is_public", true)
-    .is("deleted_at", null)
-    .maybeSingle();
-
-  if (freeboard?.id) {
-    const { data: posts, error: postsError } = await admin
-      .from("posts")
-      .select("id,title,created_at,author_id,comment_count,like_count")
-      .eq("board_id", freeboard.id)
-      .eq("status", "published")
+  try {
+    const { data: boardRows, error: boardRowsError } = await admin
+      .from("boards")
+      .select("id,slug,name,description,is_public,allow_post,allow_comment,require_post_approval,created_by,created_at,updated_at,deleted_at")
+      .eq("is_public", true)
       .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .limit(8);
+      .order("updated_at", { ascending: false })
+      .limit(100);
 
-    if (!postsError) {
-      const authorIds = [...new Set((posts ?? []).map((post) => post.author_id))];
-      const { data: profiles } = authorIds.length
-        ? await admin.from("profiles").select("id,nickname").in("id", authorIds)
-        : { data: [] as Array<{ id: string; nickname: string }> };
+    if (boardRowsError) {
+      boardError = true;
+    } else {
+      const publicBoards = (boardRows ?? []) as Board[];
+      const visibleBoards = publicBoards.slice(0, 6);
+      const boardById = new Map(publicBoards.map((board) => [board.id, board]));
 
-      const profileMap = new Map((profiles ?? []).map((profile) => [profile.id, profile.nickname]));
+      const countRows = await Promise.all(
+        visibleBoards.map(async (board) => {
+          const { count, error } = await admin
+            .from("posts")
+            .select("id", { count: "exact", head: true })
+            .eq("board_id", board.id)
+            .eq("status", "published")
+            .is("deleted_at", null);
 
-      latestPosts = (posts ?? []).map((post) => ({
-        id: post.id,
-        title: post.title,
-        created_at: post.created_at,
-        comment_count: post.comment_count,
-        like_count: post.like_count,
-        author_nickname: profileMap.get(post.author_id) ?? "unknown",
+          return [board.id, error ? 0 : (count ?? 0)] as const;
+        }),
+      );
+
+      const postCountByBoard = new Map(countRows);
+      boards = visibleBoards.map((board, index) => ({
+        id: board.id,
+        slug: board.slug,
+        name: board.name,
+        description: board.description?.trim() || "새로운 기술 토론을 시작해 보세요.",
+        postCount: postCountByBoard.get(board.id) ?? 0,
+        tone: BOARD_TONES[index % BOARD_TONES.length],
       }));
-    } else if (!error) {
-      error = "최신 글을 불러오지 못했습니다.";
+
+      const boardIds = publicBoards.map((board) => board.id);
+      if (boardIds.length > 0) {
+        const { data: activityRows, error: activityRowsError } = await admin
+          .from("posts")
+          .select("id,title,created_at,author_id,board_id")
+          .eq("status", "published")
+          .is("deleted_at", null)
+          .in("board_id", boardIds)
+          .order("created_at", { ascending: false })
+          .limit(5);
+
+        if (activityRowsError) {
+          activityError = true;
+        } else {
+          const rows = activityRows ?? [];
+          const authorIds = [...new Set(rows.map((row) => row.author_id))];
+          const { data: profiles } = authorIds.length
+            ? await admin.from("profiles").select("id,nickname").in("id", authorIds)
+            : { data: [] as Array<{ id: string; nickname: string }> };
+
+          const nicknameById = new Map((profiles ?? []).map((profile) => [profile.id, profile.nickname]));
+          activities = rows
+            .map((row) => {
+              const board = boardById.get(row.board_id);
+              if (!board) {
+                return null;
+              }
+
+              return {
+                id: row.id,
+                title: row.title,
+                createdAt: row.created_at,
+                authorNickname: nicknameById.get(row.author_id) ?? "unknown",
+                boardSlug: board.slug,
+              } satisfies LandingActivity;
+            })
+            .filter((row): row is LandingActivity => Boolean(row));
+        }
+      }
     }
+  } catch {
+    boardError = true;
+    activityError = true;
   }
 
   return (
-    <div className="page-shell">
-      <section className="hero-panel stack">
-        <h1 className="page-title">깔끔한 커뮤니티 게시판</h1>
-        <p className="page-description">
-          공개 보드에서 자유롭게 글을 작성하고, 관리자는 보드 생성/복제와 유저 운영까지 한 번에 처리할 수 있습니다.
-        </p>
-        <div className="row">
-          <Link className="button primary" href="/b/freeboard">
-            테크 뉴스 보드 보기
+    <div className={styles.landingShell}>
+      <nav className={styles.landingRail} aria-label="Primary">
+        <Link href="/" className={styles.landingRailBrand} aria-label="FreeBoard Home">
+          FB
+        </Link>
+
+        <div className={styles.landingRailLinks}>
+          <Link href="/" className={`${styles.landingRailLink} ${styles.landingRailLinkActive}`} aria-label="Home">
+            HM
           </Link>
-          <Link className="button" href="/b/ai-freeboard">
-            AI 보드 보기
+          <Link href="/search?page=1" className={styles.landingRailLink} aria-label="Search">
+            SR
           </Link>
-          <Link className="button ghost" href="/admin">
-            관리자 대시보드
+          <Link href="/b/freeboard" className={styles.landingRailLink} aria-label="Discussions">
+            DS
+          </Link>
+          <Link href="/b/ai-freeboard" className={styles.landingRailLink} aria-label="Trending AI Board">
+            AI
+          </Link>
+          <Link href="/login" className={styles.landingRailLink} aria-label="Login">
+            LG
+          </Link>
+          <Link href="/admin" className={styles.landingRailLink} aria-label="Settings">
+            AD
           </Link>
         </div>
-      </section>
 
-      {error ? <div className="error">{error}</div> : null}
+        <div className={styles.landingRailProfile} aria-label="Current user profile shortcut">
+          ME
+        </div>
+      </nav>
 
-      <section className="grid-2">
-        <article className="card stack">
-          <div className="panel-header">
-            <h2 className="panel-title">게시판 목록</h2>
-            <span className="muted">총 {boards.length}개</span>
+      <div className={styles.landingCanvas}>
+        <header className={styles.landingTopbar}>
+          <div className={styles.landingBrandGroup}>
+            <p className={styles.landingWordmark}>
+              FreeBoard<span>.</span>
+            </p>
+            <span className={styles.landingVersion}>Beta 2026</span>
           </div>
 
-          {boards.length === 0 ? <div className="empty-state">생성된 게시판이 없습니다.</div> : null}
+          <div className={styles.landingTopbarActions}>
+            <form action="/search" method="get" className={styles.landingSearchForm} aria-label="Search discussions">
+              <input
+                className={styles.landingSearchInput}
+                type="search"
+                name="q"
+                placeholder="Search discussions..."
+                aria-label="Search discussions"
+              />
+            </form>
+            <button type="button" className={styles.landingNoticeButton} aria-label="Notifications">
+              NT
+            </button>
+          </div>
+        </header>
 
-          <div className="list">
-            {boards.map((board) => (
-              <Link key={board.id} href={`/b/${board.slug}`} className="list-item">
-                <div className="row" style={{ justifyContent: "space-between" }}>
-                  <strong>{board.name}</strong>
-                  <span className="badge">/{board.slug}</span>
+        <main className={styles.landingMain}>
+          <section className={styles.landingHero} aria-label="Hero">
+            <div className={styles.landingHeroBlobOne} />
+            <div className={styles.landingHeroBlobTwo} />
+            <div className={styles.landingHeroBody}>
+              <p className={styles.landingEyebrow}>Editorial Edition</p>
+              <h1 className={styles.landingHeroTitle}>
+                The Future of <br />
+                <span>Tech Dialogue.</span>
+              </h1>
+              <div className={styles.landingHeroRow}>
+                <p className={styles.landingHeroDescription}>
+                  Join the decentralized conversation. Share insights on AI architectures, quantum computing, and the
+                  next web evolution in a curated space.
+                </p>
+                <div className={styles.landingHeroActions}>
+                  <Link className={styles.landingPrimaryButton} href="/b/freeboard/write">
+                    Start Discussion
+                  </Link>
+                  <Link className={styles.landingSecondaryButton} href="/search?page=1">
+                    Explore Boards
+                  </Link>
                 </div>
-                <div className="muted">{board.description || "설명이 없습니다."}</div>
-              </Link>
-            ))}
-          </div>
-        </article>
+              </div>
+            </div>
+          </section>
 
-        <article className="card stack">
-          <div className="panel-header">
-            <h2 className="panel-title">최신 글</h2>
-            <span className="muted">freeboard 기준</span>
-          </div>
-
-          {latestPosts.length === 0 ? <div className="empty-state">최신 글이 없습니다.</div> : null}
-
-          <div className="list">
-            {latestPosts.map((post) => (
-              <Link key={post.id} href={`/p/${post.id}`} className="list-item">
-                <strong>{post.title}</strong>
-                <div className="muted">
-                  {post.author_nickname} · {new Date(post.created_at).toLocaleString()}
+          <div className={styles.landingContentGrid}>
+            <section className={styles.landingBoardsSection} aria-labelledby="active-boards-heading">
+              <header className={styles.landingPanelHeader}>
+                <h3 id="active-boards-heading" className={styles.landingPanelTitle}>
+                  Active Boards
+                </h3>
+                <div className={styles.landingViewButtons} aria-hidden="true">
+                  <span>GD</span>
+                  <span className={styles.landingViewButtonActive}>LS</span>
                 </div>
-              </Link>
-            ))}
+              </header>
+
+              {boardError ? <p className={styles.landingError}>보드 정보를 불러오지 못했습니다.</p> : null}
+
+              {boards.length === 0 ? (
+                <article className={styles.landingEmptyCard}>
+                  <h4>아직 공개 보드가 없습니다.</h4>
+                  <p>관리자가 첫 번째 보드를 생성하면 여기에 표시됩니다.</p>
+                </article>
+              ) : (
+                <div className={styles.landingBoardGrid}>
+                  {boards.slice(0, 5).map((board) => (
+                    <Link key={board.id} href={`/b/${board.slug}`} className={styles.landingBoardCard}>
+                      <div className={styles.landingBoardHead}>
+                        <span className={`${styles.landingBoardIcon} ${styles[board.tone]}`}>{boardInitial(board.name)}</span>
+                        <span className={styles.landingBoardSlug}>/{board.slug}</span>
+                      </div>
+
+                      <div className={styles.landingBoardBody}>
+                        <h4 className={styles.landingBoardTitle}>{board.name}</h4>
+                        <p className={styles.landingBoardDescription}>{board.description}</p>
+                      </div>
+
+                      <div className={styles.landingBoardStats}>
+                        <span>Posts {board.postCount.toLocaleString()}</span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+
+              {boards.length > 5 ? (
+                <Link href={`/b/${boards[5].slug}`} className={`${styles.landingBoardCard} ${styles.landingBoardWide}`}>
+                  <div className={styles.landingBoardHead}>
+                    <span className={`${styles.landingBoardIcon} ${styles[boards[5].tone]}`}>{boardInitial(boards[5].name)}</span>
+                    <span className={styles.landingBoardSlug}>/{boards[5].slug}</span>
+                  </div>
+                  <div className={styles.landingBoardBody}>
+                    <h4 className={styles.landingBoardTitle}>{boards[5].name}</h4>
+                    <p className={styles.landingBoardDescription}>{boards[5].description}</p>
+                  </div>
+                  <div className={styles.landingBoardStats}>
+                    <span>Posts {boards[5].postCount.toLocaleString()}</span>
+                  </div>
+                </Link>
+              ) : null}
+            </section>
+
+            <aside className={styles.landingActivitySection} aria-labelledby="latest-activity-heading">
+              <header className={styles.landingPanelHeader}>
+                <h3 id="latest-activity-heading" className={styles.landingPanelTitle}>
+                  Latest Activity
+                </h3>
+                <span className={styles.landingLiveChip}>Live</span>
+              </header>
+
+              {activityError ? <p className={styles.landingError}>활동 데이터를 불러오지 못했습니다.</p> : null}
+
+              {activities.length === 0 ? (
+                <article className={styles.landingEmptyCard}>
+                  <h4>새로운 활동이 없습니다.</h4>
+                  <p>가장 최근 게시글이 등록되면 타임라인이 갱신됩니다.</p>
+                </article>
+              ) : (
+                <div className={styles.landingTimeline}>
+                  {activities.map((activity) => (
+                    <Link key={activity.id} href={`/p/${activity.id}`} className={styles.landingTimelineItem}>
+                      <span className={styles.landingTimelineDot} aria-hidden="true" />
+                      <h4>{activity.title}</h4>
+                      <p>
+                        @{activity.authorNickname} · /{activity.boardSlug} · {formatRelativeTime(activity.createdAt)}
+                      </p>
+                    </Link>
+                  ))}
+                </div>
+              )}
+
+              <div className={styles.landingTimelineFooter}>
+                <Link href="/search?page=1">View all updates</Link>
+              </div>
+            </aside>
           </div>
-        </article>
-      </section>
+        </main>
+
+        <footer className={styles.landingFooter}>
+          <p>© 2026 FreeBoard Community.</p>
+          <div className={styles.landingFooterLinks}>
+            <Link href="/search?page=1">Explore</Link>
+            <Link href="/login">Login</Link>
+            <Link href="/admin">Admin</Link>
+          </div>
+        </footer>
+      </div>
     </div>
   );
 }
