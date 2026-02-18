@@ -92,7 +92,7 @@ export default function BoardWritePage() {
             <button className="primary" type="submit" disabled={loading || !profile}>
               {loading ? "작성 중..." : "등록"}
             </button>
-            <button type="button" onClick={() => router.back()}>
+            <button className="ghost" type="button" onClick={() => router.back()}>
               취소
             </button>
           </div>

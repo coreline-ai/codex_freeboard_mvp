@@ -140,12 +140,12 @@ export default function SearchPageClient() {
           <div className="list search-results-list">
             {result.results.map((item) => (
               <Link key={item.post_id} href={`/p/${item.post_id}`} className="list-item search-result-item">
-                <div className="row" style={{ justifyContent: "space-between" }}>
+                <div className="row search-result-title-row">
                   <strong>{item.title}</strong>
                   <span className="muted search-rank">score {item.rank.toFixed(3)}</span>
                 </div>
                 <div className="muted search-excerpt">{item.excerpt || "요약이 없습니다."}</div>
-                <div className="row" style={{ justifyContent: "space-between" }}>
+                <div className="row search-result-meta-row">
                   <div className="row">
                     <span className="badge">{item.board_name}</span>
                     <span className="muted">/{item.board_slug}</span>
